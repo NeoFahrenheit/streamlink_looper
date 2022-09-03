@@ -9,11 +9,11 @@ It only works for twitch.tv for now, but you can change to work with whatever pl
 USAGE:
 <br>
 Open a Command Prompt / Terminal where the script is located and type:<br>
-**python streamlink_looper "your command"**
+**python streamlink_looper.py "your command"**
 
 EXAMPLE:
 <br>
-**python streamlink_looper "streamlink twitch.tv/streamer_name best --twitch-disable-hosting --retry-streams 60 -o streamer_name.mp4"**
+**python streamlink_looper.py "streamlink twitch.tv/streamer_name best --twitch-disable-hosting --retry-streams 60 -o streamer_name.mp4"**
 
 REQUIREMENTS:
 <br>
