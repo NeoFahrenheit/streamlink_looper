@@ -18,4 +18,5 @@ EXAMPLE:
 REQUIREMENTS:
 <br>
 You need the streamlink installed and in your path.
+<br>
 You need to have python installed and in your path.
