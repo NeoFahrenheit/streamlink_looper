@@ -27,4 +27,3 @@ class StreamlinkLooper():
 
 classObj = StreamlinkLooper()
 
-
