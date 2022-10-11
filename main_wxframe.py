@@ -24,6 +24,8 @@ class MainFrame(wx.Frame):
         self.InitUI()
         self.CenterOnScreen()
 
+        pub.subscribe(self.SaveFile, 'save-file')
+
     def LoadJsonFile(self) -> None:
         ''' Loads the .json configuration file. '''
 
@@ -33,6 +35,7 @@ class MainFrame(wx.Frame):
             streamlink_version = proc.stdout.split()[1]
             self.appData['app_version'] = self.version
             self.appData['streamlink_version'] = streamlink_version
+            self.appData['download_dir'] = f"{home}/Videos"
             self.appData['streamers_data'] = []
 
             with open(f'{home}/.streamlink_looper.json', 'w') as f:
@@ -42,6 +45,13 @@ class MainFrame(wx.Frame):
             with open(f'{home}/.streamlink_looper.json', 'r', encoding='utf-8') as f:
                 text = f.read()
                 self.appData = json.loads(text)
+
+    def SaveFile(self) -> None:
+        ''' Saves self.appData to json. '''
+
+        home = os.path.expanduser('~')
+        with open(f'{home}/.streamlink_looper.json', 'w') as f:
+                json.dump(self.appData, f, indent=4)
 
     def InitUI(self):
         ''' Initializes the GUI. '''
@@ -92,8 +102,8 @@ class MainFrame(wx.Frame):
         return sizer
 
     def OnSettings(self, event) -> None:
-        frame = settings.Settings(self)
-        frame.Show()
+        frame = settings.Settings(self, self.appData)
+        frame.ShowModal()
 
     def OnTimer(self, event):
         ''' Called every second. '''

@@ -1,5 +1,6 @@
-from tkinter import HORIZONTAL
+from http.client import NOT_FOUND
 import wx
+from pubsub import pub
 
 class Settings(wx.Dialog):
     def __init__(self, parent, appData: list):
@@ -28,8 +29,13 @@ class Settings(wx.Dialog):
         ''' Load the data for the streamers. '''
 
         streamers = self.appData['streamers_data']
-        for streamer in streamers:
-            self.listBox.Append(streamer['name'])
+        if streamers:
+            for streamer in streamers:
+                self.listBox.Append(streamer['name'])
+
+            self.listBox.SetSelection(0)
+            self.OnListBox(None)
+            
 
     def GetStreamersPanel(self) -> wx.Panel:
         panel = wx.Panel(self.notebook)
@@ -41,10 +47,18 @@ class Settings(wx.Dialog):
         masterSizer.Add(detailsSizer, flag=wx.ALL | wx.EXPAND, border=10)
 
         textSize = (100, 23)
-        addBtn = wx.Button(panel, -1, 'Add')
         removeBtn = wx.Button(panel, -1, 'Remove')
+        createBtn = wx.Button(panel, -1, 'Create')
+        editBtn = wx.Button(panel, -1, 'Edit')
+        clearBtn = wx.Button(panel, -1, 'Clear')
+
+        clearBtn.Bind(wx.EVT_BUTTON, self.OnClear)
+        removeBtn.Bind(wx.EVT_BUTTON, self.OnRemove)
+        createBtn.Bind(wx.EVT_BUTTON, self.OnCreate)
+        editBtn.Bind(wx.EVT_BUTTON, self.OnEdit)
+
         self.listBox = wx.ListBox(panel, -1, size=(150, 150))
-        self.ListBox.Bind(wx.EVT_LISTBOX, self.OnListBox)
+        self.listBox.Bind(wx.EVT_LISTBOX, self.OnListBox)
 
         urlSizer = wx.BoxSizer(wx.HORIZONTAL)
         self.urlCtrl = wx.TextCtrl(panel, -1, size=(200, 23))
@@ -72,8 +86,13 @@ class Settings(wx.Dialog):
         detailsSizer.Add(prioritySizer, flag=wx.TOP, border=10)
         detailsSizer.Add(qualitySizer, flag=wx.TOP, border=10)
 
+        BtnSizer = wx.BoxSizer(wx.HORIZONTAL)
+        BtnSizer.Add(editBtn, flag=wx.ALIGN_CENTER)
+        BtnSizer.Add(createBtn, flag=wx.LEFT | wx.ALIGN_CENTER, border=50)
+        detailsSizer.Add(BtnSizer, flag=wx.TOP | wx.ALIGN_CENTER, border=25)
+
         buttonsSizer = wx.BoxSizer(wx.HORIZONTAL)
-        buttonsSizer.Add(addBtn)
+        buttonsSizer.Add(clearBtn)
         buttonsSizer.Add(removeBtn, flag=wx.LEFT, border=10)
 
         listSizer.Add(buttonsSizer, flag=wx.BOTTOM, border=10)
@@ -82,8 +101,107 @@ class Settings(wx.Dialog):
         panel.SetSizer(masterSizer)
         return panel
 
+    def GetFieldsData(self) -> dict:
+        ''' Returns the data on the fields through a dictionary. '''
+
+        data = {}
+        url = self.urlCtrl.GetValue().strip()
+        name = self.nameCtrl.GetValue().strip()
+        priority = self.priorityCtrl.GetValue()
+        quality = self.qualityCombo.GetValue()
+        
+        data['url'] = url
+        data['name'] = name
+        data['priority'] = priority
+        data['quality'] = quality
+        data['args'] = [url, quality, '-o']
+
+        return data
+
 
     def OnListBox(self, event) -> None:
         ''' Call every time the users clicks on something in the wx.ListBox. '''
 
-        print(event.GetID())
+        if not event:
+            index = 0
+        else:
+            index = event.GetEventObject().GetSelection()
+        
+        if self.appData['streamers_data']:
+            data = self.appData['streamers_data'][index]
+            self.urlCtrl.SetValue(data['url'])
+            self.nameCtrl.SetValue(data['name'])
+            self.priorityCtrl.SetValue(data['priority'])
+            self.qualityCombo.SetValue(data['quality'])
+
+        else:
+            self.OnClear(None)
+
+    def OnClear(self, event):
+        ''' Reset the field to their default values. '''
+
+        self.urlCtrl.Clear()
+        self.nameCtrl.Clear()
+        self.priorityCtrl.SetValue(1)
+        self.qualityCombo.SetValue('best')
+
+        self.listBox.SetSelection(wx.NOT_FOUND)
+
+    def OnRemove(self, event):
+        ''' Removes a stremaer from the file. '''
+
+        index = self.listBox.GetSelection()
+        name = self.appData['streamers_data'][index]['name']
+
+        dlg = wx.MessageDialog(self, f"Are you sure you want to remove {name}?", 'Removing streamer', wx.ICON_WARNING | wx.YES_NO)
+        res = dlg.ShowModal()
+
+        if res == wx.ID_YES:
+            self.listBox.Delete(index)
+            del self.appData['streamers_data'][index]
+            pub.sendMessage('save-file')
+            self.OnListBox(None)
+
+    def OnCreate(self, event):
+        if self.urlCtrl.IsEmpty() or self.nameCtrl.IsEmpty():
+            wx.MessageBox('Please, fill all the information in the text fields.', 'Empty Fields', wx.ICON_ERROR)
+            return
+
+        data = self.GetFieldsData()
+
+        for streamer in self.appData['streamers_data']:
+            if streamer['name'] == data['name']:
+                wx.MessageBox('A streamer with this name already exists. Please, choose another one.', 
+                'Streamer already exists', wx.ICON_ERROR)
+                return
+        
+        self.appData['streamers_data'].append(data)
+        pub.sendMessage('save-file')
+        self.listBox.Append(data['name'])
+
+        wx.MessageBox('Streamer successfully saved.', 'Success', wx.ICON_INFORMATION)
+
+    def OnEdit(self, event):
+        if self.urlCtrl.IsEmpty() or self.nameCtrl.IsEmpty():
+            wx.MessageBox('Please, fill all the information in the text fields.', 'Empty Fields', wx.ICON_ERROR)
+            return
+
+        data = self.GetFieldsData()
+        index = self.listBox.GetSelection()
+        if index == wx.NOT_FOUND:
+            wx.MessageBox('Please, select a streamer to edit.', 'No streamer selected', wx.ICON_ERROR)
+            return
+
+        # If the user is editing without changing the name, we need a exception for cheking
+        # for the same name. Hence, i != index.
+        for i in range (0, len(self.appData['streamers_data'])):
+            if i != index and self.appData['streamers_data'][i]['name'] == data['name']:
+                wx.MessageBox('A streamer with this name already exists. Please, choose another one.', 
+                'Streamer already exists', wx.ICON_ERROR)
+                return
+    
+        self.appData['streamers_data'][index] = data
+        self.listBox.SetString(index, data['name'])
+        pub.sendMessage('save-file')
+
+        wx.MessageBox(f"{data['name']} was successfully saved.", 'Success', wx.ICON_INFORMATION)
