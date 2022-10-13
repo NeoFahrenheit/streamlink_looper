@@ -113,7 +113,7 @@ class Settings(wx.Dialog):
         data['name'] = name
         data['priority'] = priority
         data['quality'] = quality
-        data['args'] = [url, quality, '-o']
+        data['args'] = ['streamlink', url, quality, '-o']
 
         return data
 
