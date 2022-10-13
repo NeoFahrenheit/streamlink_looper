@@ -4,6 +4,7 @@ import wx
 import wx.richtext as rt
 from pubsub import pub
 import json
+from scheduler import Scheduler
 import stopwatch
 import settings
 
@@ -103,8 +104,10 @@ class MainFrame(wx.Frame):
         return sizer
 
     def OnSettings(self, event) -> None:
-        frame = settings.Settings(self, self.appData)
-        frame.ShowModal()
+        # frame = settings.Settings(self, self.appData)
+        # frame.ShowModal()
+
+        frame = Scheduler(self, self.appData)
 
     def OnTimer(self, event):
         ''' Called every second. '''
