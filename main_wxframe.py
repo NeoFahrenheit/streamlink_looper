@@ -15,6 +15,7 @@ class MainFrame(wx.Frame):
         self.SetSize(800, 400)
         self.version = 0.1
         self.appData = {}
+        self.scheduler = []
 
         self.timer = wx.Timer(self)
         self.Bind(wx.EVT_TIMER, self.OnTimer)

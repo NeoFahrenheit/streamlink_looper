@@ -1,4 +1,3 @@
-from http.client import NOT_FOUND
 import wx
 from pubsub import pub
 
@@ -71,12 +70,12 @@ class Settings(wx.Dialog):
         nameSizer.Add(self.nameCtrl, flag=wx.LEFT, border=15)
 
         prioritySizer = wx.BoxSizer(wx.HORIZONTAL)
-        self.priorityCtrl = wx.SpinCtrl(panel, -1, size=(50, 23), min=1)
+        self.priorityCtrl = wx.SpinCtrl(panel, -1, size=(50, 23), min=1, max=5)
         prioritySizer.Add(wx.StaticText(panel, -1, 'Priority :', size=textSize, style=wx.ALIGN_RIGHT), flag=wx.TOP, border=3)
         prioritySizer.Add(self.priorityCtrl, flag=wx.LEFT, border=15)
 
         qualitySizer = wx.BoxSizer(wx.HORIZONTAL)
-        choices = ['best', '1080p', '720p', '480p', '360p', '240p', '144p']
+        choices = ['best', '1080p', '720p', '480p', '360p', 'wrost']
         self.qualityCombo = wx.ComboBox(panel, -1, choices[0], choices=choices, size=(100, 23), style=wx.CB_READONLY)
         qualitySizer.Add(wx.StaticText(panel, -1, 'Quality :', size=textSize, style=wx.ALIGN_RIGHT), flag=wx.TOP, border=3)
         qualitySizer.Add(self.qualityCombo, flag=wx.LEFT, border=15)
@@ -193,7 +192,7 @@ class Settings(wx.Dialog):
             return
 
         # If the user is editing without changing the name, we need a exception for cheking
-        # for the same name. Hence, i != index.
+        # that. Hence, i != index.
         for i in range (0, len(self.appData['streamers_data'])):
             if i != index and self.appData['streamers_data'][i]['name'] == data['name']:
                 wx.MessageBox('A streamer with this name already exists. Please, choose another one.', 
