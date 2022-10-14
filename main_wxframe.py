@@ -35,6 +35,7 @@ class MainFrame(wx.Frame):
         self.InitUI()
         self.CenterOnScreen()
 
+        pub.subscribe(self.UpdateDownloadInfo, 'update-download-info')
         pub.subscribe(self.SaveFile, 'save-file')
         pub.subscribe(self.Log, 'log')
 
@@ -130,8 +131,8 @@ class MainFrame(wx.Frame):
         textSize = (100, 23)
         name_t = wx.StaticText(panel, -1, streamer_name, size=textSize, style=wx.ALIGN_LEFT, name=streamer_name)
         clock = wx.StaticText(panel, -1, '00:00:00', size=textSize, style=wx.ALIGN_RIGHT, name=streamer_name)
-        file_size = wx.StaticText(panel, -1, '1.3GiB', size=textSize, style=wx.ALIGN_RIGHT, name=streamer_name)
-        speed = wx.StaticText(panel, -1, '812 KB/s', size=textSize, style=wx.ALIGN_RIGHT, name=streamer_name)
+        file_size = wx.StaticText(panel, -1, '0 B', size=textSize, style=wx.ALIGN_RIGHT, name=streamer_name)
+        speed = wx.StaticText(panel, -1, '0 B/s', size=textSize, style=wx.ALIGN_RIGHT, name=streamer_name)
 
         sizer.Add(name_t, flag=wx.ALL, border=3)
         sizer.Add(clock, flag=wx.ALL, border=3)
@@ -199,3 +200,16 @@ class MainFrame(wx.Frame):
         ''' Called every second. '''
 
         pub.sendMessage('ping-timer')
+
+    def UpdateDownloadInfo(self, name: str, watch: str, size: float, speed: float):
+        ''' Updates a wx.Panel with a download info on `self.scrolled`. '''
+
+        children = self.scrolled.GetChildren()
+        for panel in children:
+            if panel.GetName() == name:
+                static_text_list = panel.GetChildren()
+                static_text_list[1].SetLabel(watch)
+                static_text_list[2].SetLabel(size)
+                static_text_list[3].SetLabel(speed)
+
+                return

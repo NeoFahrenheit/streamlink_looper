@@ -1,3 +1,4 @@
+import os
 from wx import CallAfter
 import streamlink
 import requests
@@ -7,15 +8,17 @@ from pubsub import pub
 from threading import Thread
 import stopwatch
 import utilities as util
-
+from datetime import datetime
 
 class Download(Thread):
 
     def __init__(self, url, name, dir):
         Thread.__init__(self)
+        self.isActive = True
         self.url = url
         self.name = name
         self.dir = dir
+        self.c = 0
 
         self.stopwatch = stopwatch.StopWatch()
         self.dl_total = 0
@@ -28,10 +31,13 @@ class Download(Thread):
         ''' Runs the thread. '''
 
         pub.subscribe(self.OnTimer, 'ping-timer')
-        filename = self.url.split('/')[-1]
+
+        now = datetime.now()
+        time = now.strftime("%Y-%m-%d_%H-%M-%S")
+        filename = f"{self.name}_{time}"
         file = open(f"{self.dir}/{filename}.ts", "wb")
 
-        while self.fetch_stream():
+        while self.fetch_stream() and self.isActive:
             # I don't understand the for i in range() below or why we need the self.j.
             for i in range(self.j - 1, 0, -1):
                 with requests.get(self.m3u8_obj.segments[-i].uri) as r:
@@ -41,15 +47,17 @@ class Download(Thread):
                         file.write(chunk)
 
         file.close()
+
         # Changing the container of the stream to .mp4. This should be very fast.
-        subprocess.call(
-            f"ffmpeg -y -i {filename + '.ts'} -vcodec copy -acodec copy -map 0:v -map 0:a {filename}.mp4"
-        )
+        ts = f"{self.dir}/{filename}.ts"
+        mp4 = f"{self.dir}/{filename}.mp4"
+        subprocess.call(["ffmpeg", "-y", "-i", ts, "-vcodec", "copy", "-acodec", "copy", "-map", "0:v", "-map", "0:a", mp4])
+        os.remove(f"{self.dir}/{filename}.ts")
         pub.unsubAll()
 
     def fetch_stream(self) -> bool:
         ''' Check if a stream is online. If so, populates crucial variables and returns True. '''
-        
+
         # Will this catch streams end or stream offline? What about hostings? We don't want that.
         try:
             streams = streamlink.streams(self.url)
@@ -79,6 +87,14 @@ class Download(Thread):
         return True
 
     def OnTimer(self):
+        ''' Called every second. '''
+
+        self.c += 1
+        if self.c == 10:
+            self.isActive = False
+
         self.stopwatch.ping()
-        # util.print_progress_text(self.stopwatch, self.dl_total, self.dl_temp)
+
+        watch, size, speed = util.get_progress_text(self.stopwatch, self.dl_total, self.dl_temp)
+        CallAfter(pub.sendMessage, topicName='update-download-info', name=self.name, watch=watch, size=size, speed=speed)
         self.dl_temp = 0
