@@ -5,9 +5,10 @@ from pubsub import pub
 from datetime import datetime
 
 class Scheduler(Thread):
-    def __init__(self, appData):
+    def __init__(self, parent, appData):
         Thread.__init__(self)
         self.is_Active = True
+        self.parent = parent
 
         self.threads = []
         self.queue = []
@@ -38,10 +39,11 @@ class Scheduler(Thread):
 
             self.queue.append(dic)
 
-            # self.choosen.append({'name': dic['name'], 'choosen': 0}) # For debug only
-
     def ChooseOne(self):
         ''' Chooses one stream from queue to be checked. '''
+
+        if not self.queue:
+            return
 
         wait_line = []
 
@@ -63,7 +65,7 @@ class Scheduler(Thread):
         # We need to be careful. When we removed from the queue, our index
         # is no longer valid. It should be done last.
         if is_live:
-            #self.AddStreamerToScrolled(streamer)
+            CallAfter(self.parent.AddStreamer, self.queue[index])
             CallAfter(self.AddToLog, self.queue[index]['name'], is_live)
             self.RemoveFromQueue(self.queue[index]['name'])
 
@@ -75,7 +77,6 @@ class Scheduler(Thread):
         ''' Checks if a streamer is online. If so, starts it's download thread and append 
         it to `self.threads`. '''
 
-        print(f"Cheking streamer {streamer['name']} for it's status...")
         t = dt.Download(streamer['url'], streamer['name'], self.dir)
 
         if t.fetch_stream():
@@ -87,7 +88,6 @@ class Scheduler(Thread):
             return False
 
     def RemoveFromQueue(self, name: str):
-        print(f"Removing {name} from queue...")
 
         for i in range (0, len(self.queue)):
             if self.queue[i]['name'] == name:
@@ -121,6 +121,3 @@ class Scheduler(Thread):
         now = datetime.now()
         time = now.strftime("%H:%M:%S")
         pub.sendMessage('log', streamer=name, time=time, status=status)
-
-    def AddStreamerToScrolled(self, streamer: dict):
-        CallAfter(pub.sendMessage, 'add-streamer', streamer=streamer)

@@ -49,6 +49,7 @@ class Download(Thread):
 
     def fetch_stream(self) -> bool:
         ''' Check if a stream is online. If so, populates crucial variables and returns True. '''
+        
         # Will this catch streams end or stream offline? What about hostings? We don't want that.
         try:
             streams = streamlink.streams(self.url)

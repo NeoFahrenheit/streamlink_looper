@@ -18,7 +18,7 @@ class MainFrame(wx.Frame):
         self.ID = utilities.ID()
 
         self.SetTitle('Streamlink Lopper')
-        self.SetSize(800, 400)
+        self.SetSize(1000, 400)
         self.scheduler_status = 'Stopped'
         self.status_bar = self.CreateStatusBar()
 
@@ -37,18 +37,18 @@ class MainFrame(wx.Frame):
 
         pub.subscribe(self.SaveFile, 'save-file')
         pub.subscribe(self.Log, 'log')
-        pub.subscribe(self.AddStreamer, 'add-streamer')
 
     def LoadJsonFile(self) -> None:
         ''' Loads the .json configuration file. '''
 
         home = os.path.expanduser('~')
+
         if not os.path.isfile(f'{home}/.streamlink_looper.json'):
             proc = subprocess.run('streamlink --version', stdout=subprocess.PIPE, text=True)
             streamlink_version = proc.stdout.split()[1]
             self.appData['app_version'] = self.version
             self.appData['streamlink_version'] = streamlink_version
-            self.appData['download_dir'] = f"{home}/Videos"
+            self.appData['download_dir'] = f"{home}/Videos/Streamlink Looper"
             self.appData['wait_time'] = 15
             self.appData['streamers_data'] = []
 
@@ -59,6 +59,9 @@ class MainFrame(wx.Frame):
             with open(f'{home}/.streamlink_looper.json', 'r', encoding='utf-8') as f:
                 text = f.read()
                 self.appData = json.loads(text)
+
+        if not os.path.isdir(self.appData['download_dir']):
+            os.makedirs(self.appData['download_dir'])
 
     def SaveFile(self) -> None:
         ''' Saves self.appData to json. '''
@@ -82,7 +85,7 @@ class MainFrame(wx.Frame):
         self.rt = rt.RichTextCtrl(self.panel, -1, style=wx.TE_READONLY)
         self.rt.GetCaret().Hide()
 
-        master.Add(self.scrolled, proportion=1)
+        master.Add(self.scrolled, proportion=1, flag=wx.ALL | wx.EXPAND, border=5)
         master.Add(self.rt, proportion=1, flag=wx.ALL | wx.EXPAND, border=5)
 
         self.panel.SetSizerAndFit(master)
@@ -115,24 +118,35 @@ class MainFrame(wx.Frame):
         menu.Append(self.scheduler_menu, 'Scheduler')
         self.SetMenuBar(menu)
 
-    def GetStreamerSizer(self, streamer: str) -> wx.BoxSizer:
+    def GetStreamerPanel(self, streamer: str) -> wx.Panel:
         ''' Returns a Horizontal Sizer about a specific streamer. '''
 
-        sizer = wx.BoxSizer(wx.HORIZONTAL)
         streamer_name = streamer['name']
 
-        textSize = (100, 23)
-        name_t = wx.StaticText(self.panel, -1, streamer_name, size=textSize, style=wx.ALIGN_LEFT, name=streamer_name)
-        self.clock = wx.StaticText(self.panel, -1, '00:00:00', size=textSize, style=wx.ALIGN_CENTER, name=streamer_name)
-        size = wx.StaticText(self.panel, -1, '1.3GiB', size=textSize, style=wx.ALIGN_RIGHT, name=streamer_name)
-        speed = wx.StaticText(self.panel, -1, '812 KB/s', size=textSize, style=wx.ALIGN_RIGHT, name=streamer_name)
+        panel = wx.Panel(self.scrolled, name=streamer_name)
+        panel.SetBackgroundColour('#ddd3ed')
+        sizer = wx.BoxSizer(wx.HORIZONTAL)
 
-        sizer.Add(name_t, flag=wx.EXPAND)
-        sizer.Add(self.clock, flag=wx.EXPAND)
-        sizer.Add(size, flag=wx.EXPAND)
-        sizer.Add(speed, flag=wx.EXPAND)
+        textSize = (100, 23)
+        name_t = wx.StaticText(panel, -1, streamer_name, size=textSize, style=wx.ALIGN_LEFT, name=streamer_name)
+        clock = wx.StaticText(panel, -1, '00:00:00', size=textSize, style=wx.ALIGN_RIGHT, name=streamer_name)
+        file_size = wx.StaticText(panel, -1, '1.3GiB', size=textSize, style=wx.ALIGN_RIGHT, name=streamer_name)
+        speed = wx.StaticText(panel, -1, '812 KB/s', size=textSize, style=wx.ALIGN_RIGHT, name=streamer_name)
+
+        sizer.Add(name_t, flag=wx.ALL, border=3)
+        sizer.Add(clock, flag=wx.ALL, border=3)
+        sizer.Add(file_size, flag=wx.ALL, border=3)
+        sizer.Add(speed, flag=wx.ALL, border=3)
+
+        panel.SetSizer(sizer)
+        return panel
+
+    def AddStreamer(self, streamer: dict):
         
-        return sizer
+        panel = self.GetStreamerPanel(streamer)
+
+        self.scrolledSizer.Add(panel, flag=wx.ALL | wx.EXPAND, border=10)
+        self.scrolled.SendSizeEvent()
 
     def Log(self, streamer: str, time: str, status: bool):
         ''' Adds to the log on the main window. '''
@@ -167,19 +181,17 @@ class MainFrame(wx.Frame):
         self.rt.EndTextColour()
         self.rt.EndBold()
 
-    def AddStreamer(self, streamer: dict):
-
-        self.scrolledSizer.Add(self.GetStreamerSizer(streamer), proportion=1, flag=wx.EXPAND | wx.ALL, border=15)
-        self.scrolled.SendSizeEvent()
-
     def OnSettings(self, event) -> None:
+        ''' Opens the settings window. '''
+
         frame = settings.Settings(self, self.appData)
         frame.ShowModal()
 
     def OnStart(self, event):
+        ''' Starts the scheduler. '''
 
         if self.scheduler_status != 'Running':
-            self.scheduler_thread = Scheduler(self.appData)
+            self.scheduler_thread = Scheduler(self, self.appData)
             self.scheduler_status = 'Running'
             self.scheduler_menu.Enable(self.ID.SCHEDULER, True)
 
