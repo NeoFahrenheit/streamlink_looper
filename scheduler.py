@@ -1,3 +1,4 @@
+import sys
 from wx import CallAfter
 from threading import Thread
 import download_thread as dt
@@ -7,10 +8,9 @@ from datetime import datetime
 class Scheduler(Thread):
     def __init__(self, parent, appData):
         Thread.__init__(self)
-        self.is_Active = True
+        self.isActive = True
         self.parent = parent
 
-        self.threads = []
         self.queue = []
         self.sec = 0
         self.wait_time = appData['wait_time']
@@ -20,8 +20,11 @@ class Scheduler(Thread):
         self.start()
 
     def run(self):
+
         self.ChooseOne()
         pub.subscribe(self.OnTimer, 'ping-timer')
+        pub.subscribe(self.AddToQueue, 'add-to-queue')
+        pub.subscribe(self.KillSchedulerThread, 'kill-scheduler-thread')
 
     def PrepareData(self, data: dict):
         ''' Prepares the data for the scheduler. Everybody gets their wait time. 
@@ -42,15 +45,16 @@ class Scheduler(Thread):
     def ChooseOne(self):
         ''' Chooses one stream from queue to be checked. '''
 
-        if not self.queue:
+        print('Choosing one...')
+        if not self.queue or not self.isActive:
             return
 
         wait_line = []
 
         # We check first how's the wait is for everybody.
-        for data in self.queue:
-            waited = data['waited']
-            limit = self.wait_time * 3 * data['priority']
+        for streamer in self.queue:
+            waited = streamer['waited']
+            limit = self.wait_time * 3 * streamer['priority']
             wait_line.append(waited - limit)
 
         # Now we need the one who waited more.
@@ -77,17 +81,16 @@ class Scheduler(Thread):
         ''' Checks if a streamer is online. If so, starts it's download thread and append 
         it to `self.threads`. '''
 
-        t = dt.Download(streamer['url'], streamer['name'], self.dir)
+        t = dt.Download(streamer, self.dir)
 
         if t.fetch_stream():
             t.start()
-            self.threads.append(t)
             return True
-
         else:
             return False
 
     def RemoveFromQueue(self, name: str):
+        ''' Removes a stream from the queue. '''
 
         for i in range (0, len(self.queue)):
             if self.queue[i]['name'] == name:
@@ -95,15 +98,18 @@ class Scheduler(Thread):
                 return
 
     def AddToQueue(self, streamer: dict):
+        ''' Adds a stream to the queue. '''
+
         d = {}
+        d['url'] = streamer['url']
         d['name'] = streamer['name']
         d['priority'] = streamer['priority']
         d['waited'] = 0
 
-        self.queue.index(len(self.queue), d)
+        self.queue.append(d)
 
     def OnTimer(self):
-        if not self.is_Active:
+        if not self.isActive:
             pub.unsubAll()
             return
 
@@ -121,3 +127,8 @@ class Scheduler(Thread):
         now = datetime.now()
         time = now.strftime("%H:%M:%S")
         pub.sendMessage('log', streamer=name, time=time, status=status)
+
+    def KillSchedulerThread(self):
+        ''' Sets the `self.isActive` to False to end this thread. '''
+
+        sys.exit()

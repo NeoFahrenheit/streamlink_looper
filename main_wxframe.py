@@ -36,8 +36,10 @@ class MainFrame(wx.Frame):
         self.CenterOnScreen()
 
         pub.subscribe(self.UpdateDownloadInfo, 'update-download-info')
+        pub.subscribe(self.DeletePanel, 'delete-panel')
         pub.subscribe(self.SaveFile, 'save-file')
         pub.subscribe(self.Log, 'log')
+        pub.subscribe(self.LogStreamEnded, 'log-stream-ended')
 
     def LoadJsonFile(self) -> None:
         ''' Loads the .json configuration file. '''
@@ -69,7 +71,7 @@ class MainFrame(wx.Frame):
 
         home = os.path.expanduser('~')
         with open(f'{home}/.streamlink_looper.json', 'w') as f:
-                json.dump(self.appData, f, indent=4)
+            json.dump(self.appData, f, indent=4)
 
     def InitUI(self):
         ''' Initializes the GUI. '''
@@ -101,9 +103,9 @@ class MainFrame(wx.Frame):
         file.AppendSeparator()
         exit = file.Append(-1, 'Exit', 'Exit the software')
 
-        start = self.scheduler_menu.Append(-1, 'Start', 'Start the scheduler')
-        pause = self.scheduler_menu.Append(-1, 'Pause', 'Pause the scheduler')
-        stop = self.scheduler_menu.Append(-1, 'Stop', 'Stop the scheduler')
+        start = self.scheduler_menu.Append(-1, 'Start', 'Start the scheduler.')
+        pause = self.scheduler_menu.Append(-1, 'Pause', 'Pause the scheduler. The ongoing downloads remains active.')
+        stop = self.scheduler_menu.Append(-1, 'Stop', 'Stop the scheduler and all ongoing downloads.')
         
         users = [name['name'] for name in self.appData['streamers_data']]
         for name in users:
@@ -157,6 +159,14 @@ class MainFrame(wx.Frame):
         self.rt.WriteText(f" was checked at {time} and it was ")
         self.WriteStreamerStatus(status)
         self.rt.WriteText(".\n")
+
+    def LogStreamEnded(self, streamer: str, time: str):
+        ''' Adds to the log notifying about the ended stream. '''
+
+        self.rt.WriteText("The ") 
+        self.WriteStreamerName(streamer)
+        self.rt.WriteText(f" stream ended at {time}.")
+        self.rt.WriteText("\n")
 
     def WriteStreamerName(self, name: str):
 
@@ -212,4 +222,14 @@ class MainFrame(wx.Frame):
                 static_text_list[2].SetLabel(size)
                 static_text_list[3].SetLabel(speed)
 
+                return
+
+    def DeletePanel(self, name: str):
+        ''' Deletes a wx.Panel from the scrolledPanel. '''
+
+        children = self.scrolled.GetChildren()
+        for panel in children:
+            if panel.GetName() == name:
+                panel.Destroy()
+                self.scrolled.SendSizeEvent()
                 return
