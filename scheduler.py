@@ -7,33 +7,29 @@ from datetime import datetime
 class Scheduler(Thread):
     def __init__(self, appData):
         Thread.__init__(self)
-        self.appData = appData
         self.is_Active = True
 
         self.threads = []
         self.queue = []
         self.sec = 0
-        self.wait_time = self.appData['wait_time']
-        self.dir = self.appData['download_dir']
-        
-        # self.count = 0 # For debug only.
-        # self.choosen = [] # For debug only.
+        self.wait_time = appData['wait_time']
+        self.dir = appData['download_dir']
 
-        self.PrepareData()
+        self.PrepareData(appData)
         self.start()
 
     def run(self):
         self.ChooseOne()
         pub.subscribe(self.OnTimer, 'ping-timer')
 
-    def PrepareData(self):
+    def PrepareData(self, data: dict):
         ''' Prepares the data for the scheduler. Everybody gets their wait time. 
         The closest the wait_time reaches or surpasses the limit `(wait_time * 3 * priority)`, the streamer
         becomes more prioritized to be checked for availability. When the streamer gets checked,
         their wait_time is set to zero.
         '''
 
-        for data in self.appData['streamers_data']:
+        for data in data['streamers_data']:
             dic = {}
             dic['url'] = data['url']
             dic['name'] = data['name']
@@ -45,6 +41,8 @@ class Scheduler(Thread):
             # self.choosen.append({'name': dic['name'], 'choosen': 0}) # For debug only
 
     def ChooseOne(self):
+        ''' Chooses one stream from queue to be checked. '''
+
         wait_line = []
 
         # We check first how's the wait is for everybody.
@@ -60,25 +58,29 @@ class Scheduler(Thread):
             if wait_line[i] > waited_most:
                 index = i
                 waited_most = wait_line[i]
-
-        # self.choosen[index]['choosen'] += 1 # For debug only.
         
         is_live = self.CheckStreamer(self.queue[index])
-        CallAfter(self.AddToLog, index, is_live)
-        if not is_live:
-            self.queue[index]['waited'] = 0
+        # We need to be careful. When we removed from the queue, our index
+        # is no longer valid. It should be done last.
+        if is_live:
+            #self.AddStreamerToScrolled(streamer)
+            CallAfter(self.AddToLog, self.queue[index]['name'], is_live)
+            self.RemoveFromQueue(self.queue[index]['name'])
 
+        else:
+            self.queue[index]['waited'] = 0
+            CallAfter(self.AddToLog, self.queue[index]['name'], is_live)
 
     def CheckStreamer(self, streamer: dict) -> bool:
         ''' Checks if a streamer is online. If so, starts it's download thread and append 
         it to `self.threads`. '''
 
+        print(f"Cheking streamer {streamer['name']} for it's status...")
         t = dt.Download(streamer['url'], streamer['name'], self.dir)
+
         if t.fetch_stream():
             t.start()
             self.threads.append(t)
-            #self.AddStreamerToScrolled(streamer)
-            self.RemoveFromQueue(streamer['name'])
             return True
 
         else:
@@ -106,12 +108,6 @@ class Scheduler(Thread):
             return
 
         self.sec += 1
-        # self.count += 1
-
-        # if self.count == 2000:
-        #     print(self.choosen)
-        #     exit(0)
-
         for data in self.queue:
             data['waited'] += 1
 
@@ -119,10 +115,9 @@ class Scheduler(Thread):
             self.sec = 0
             self.ChooseOne()
 
-    def AddToLog(self, index: int, status: bool):
+    def AddToLog(self, name: str, status: bool):
         ''' Adds to the log on the main window. '''
 
-        name = self.appData['streamers_data'][index]['name']
         now = datetime.now()
         time = now.strftime("%H:%M:%S")
         pub.sendMessage('log', streamer=name, time=time, status=status)
