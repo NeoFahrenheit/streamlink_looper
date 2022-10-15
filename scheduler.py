@@ -45,7 +45,6 @@ class Scheduler(Thread):
     def ChooseOne(self):
         ''' Chooses one stream from queue to be checked. '''
 
-        print('Choosing one...')
         if not self.queue or not self.isActive:
             return
 
@@ -78,8 +77,7 @@ class Scheduler(Thread):
             CallAfter(self.AddToLog, self.queue[index]['name'], is_live)
 
     def CheckStreamer(self, streamer: dict) -> bool:
-        ''' Checks if a streamer is online. If so, starts it's download thread and append 
-        it to `self.threads`. '''
+        ''' Checks if a streamer is online. If so, starts it's download thread. '''
 
         t = dt.Download(streamer, self.dir)
 

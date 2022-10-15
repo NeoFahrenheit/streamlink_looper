@@ -11,8 +11,10 @@ def get_unit(size: int) -> str:
         unit = 'B'
     elif size < 1_048_576:
         unit = 'KB'
-    else:
+    elif size < 1_073_741_824:
         unit = 'MB'
+    else:
+        unit = 'GB'
 
     return unit
 

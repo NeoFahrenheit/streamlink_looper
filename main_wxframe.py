@@ -49,10 +49,17 @@ class MainFrame(wx.Frame):
         if not os.path.isfile(f'{home}/.streamlink_looper.json'):
             proc = subprocess.run('streamlink --version', stdout=subprocess.PIPE, text=True)
             streamlink_version = proc.stdout.split()[1]
+
             self.appData['app_version'] = self.version
             self.appData['streamlink_version'] = streamlink_version
             self.appData['download_dir'] = f"{home}/Videos/Streamlink Looper"
             self.appData['wait_time'] = 15
+            self.appData['log_verbosity'] = 'All'
+            self.appData['clear_log'] = 1000
+            self.appData['starts_scheduler_on_open'] = False
+            self.appData['starts_with_computer'] = False
+            self.appData['send_notifications'] = False
+
             self.appData['streamers_data'] = []
 
             with open(f'{home}/.streamlink_looper.json', 'w') as f:
@@ -165,8 +172,8 @@ class MainFrame(wx.Frame):
 
         self.rt.WriteText("The ") 
         self.WriteStreamerName(streamer)
-        self.rt.WriteText(f" stream ended at {time}.")
-        self.rt.WriteText("\n")
+        self.rt.WriteText(f" stream ended at {time}")
+        self.rt.WriteText(".\n")
 
     def WriteStreamerName(self, name: str):
 
