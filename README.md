@@ -18,7 +18,7 @@ Now, you can add your favorite streams to the software so you can never lose a l
 
  - The app uses too much CPU. Optimization is needed.
  - Reported download speed is inconsistent.
- - Sometimes when a stream is checked, the app lags a bit causing the timer for freeze for one or two seconds and causing problems with the formatting of text strings to the log.
+ - When a stream is checked, the app lags a bit for one or two seconds causing problems with the download information being displayed.
 
 ## TODO
 
