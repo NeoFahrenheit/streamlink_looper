@@ -166,6 +166,7 @@ class MainFrame(wx.Frame):
         self.rt.WriteText(f" was checked at {time} and it was ")
         self.WriteStreamerStatus(status)
         self.rt.WriteText(".\n")
+        self.rt.MoveToLineEnd()
 
     def LogStreamEnded(self, streamer: str, time: str):
         ''' Adds to the log notifying about the ended stream. '''
@@ -174,6 +175,7 @@ class MainFrame(wx.Frame):
         self.WriteStreamerName(streamer)
         self.rt.WriteText(f" stream ended at {time}")
         self.rt.WriteText(".\n")
+        self.rt.MoveToLineEnd()
 
     def WriteStreamerName(self, name: str):
 

@@ -1,3 +1,4 @@
+import streamlink
 import sys
 from wx import CallAfter
 from threading import Thread
@@ -8,6 +9,13 @@ from datetime import datetime
 class Scheduler(Thread):
     def __init__(self, parent, appData):
         Thread.__init__(self)
+
+        self.session = streamlink.Streamlink()
+        self.session.set_option("ffmpeg-ffmpeg", "C:\\src\\ffmpeg\\bin\\ffmpeg.exe")
+        self.session.set_option("ffmpeg-fout", "matroska")
+        self.session.set_option("ffmpeg-video-transcode", "h264")
+        self.session.set_option("ffmpeg-audio-transcode", "aac")
+
         self.isActive = True
         self.parent = parent
 
@@ -79,12 +87,13 @@ class Scheduler(Thread):
     def CheckStreamer(self, streamer: dict) -> bool:
         ''' Checks if a streamer is online. If so, starts it's download thread. '''
 
-        t = dt.Download(streamer, self.dir)
+        t = dt.Download(streamer, self.dir, self.session)
 
         if t.fetch_stream():
             t.start()
             return True
         else:
+            del t
             return False
 
     def RemoveFromQueue(self, name: str):

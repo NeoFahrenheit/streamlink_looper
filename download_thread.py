@@ -13,9 +13,12 @@ from datetime import datetime
 
 class Download(Thread):
 
-    def __init__(self, streamer: dict, dir):
+    def __init__(self, streamer: dict, dir: str, session):
         Thread.__init__(self)
         self.isActive = True
+        self.session = session
+
+        self.stream_data = None
         self.streamer = streamer
         self.url = streamer['url']
         self.name = streamer['name']
@@ -36,17 +39,18 @@ class Download(Thread):
         now = datetime.now()
         time_started = now.strftime("%Y-%m-%d_%H-%M-%S")
         filename = f"{self.name}_{time_started}"
-        file = open(f"{self.dir}/{filename}.ts", "wb")
 
         pub.subscribe(self.OnTimer, 'ping-timer')
-        while self.fetch_stream() and self.isActive:
-            # I don't understand the for i in range() below or why we need the self.j.
-            for i in range(self.j - 1, 0, -1):
-                with requests.get(self.m3u8_obj.segments[-i].uri) as r:
-                    for chunk in r.iter_content():
-                        self.dl_total += len(chunk)
-                        self.dl_temp += len(chunk)
-                        file.write(chunk)
+        file = open(f"{self.dir}/{filename}.ts", "ab+")
+
+        while True:
+            try:
+                data = self.stream_data.read(1024)
+                self.dl_total += len(data)
+                self.dl_temp += len(data)
+                file.write(data)
+            except:
+                break
 
         file.close()
         CallAfter(pub.sendMessage, topicName='delete-panel', name=self.name)
@@ -71,8 +75,8 @@ class Download(Thread):
 
         # Will this catch streams end or stream offline? What about hostings? We don't want that.
         try:
-            streams = streamlink.streams(self.url)
-            stream_url = streams["best"]
+            streams = self.session.streams(self.url)
+            self.stream_data = streams["best"].open()
         except streamlink.NoPluginError:
             print('This website is not supported')
             return False
@@ -80,19 +84,7 @@ class Download(Thread):
             print('The stream is offline or has endend')
             return False
         except streamlink.StreamlinkError:
-            print('An error has occurred.')
             return False
-        except:
-            return False
-
-        self.m3u8_obj = m3u8.load(stream_url.args['url'])
-
-        previous_part_time = self.last_part
-        self.last_part = self.m3u8_obj.segments[-1].program_date_time
-
-        for self.j in range(1, len(self.m3u8_obj.segments)):
-            if self.m3u8_obj.segments[-self.j].program_date_time == previous_part_time:
-                break
 
         return True
 
