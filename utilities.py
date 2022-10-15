@@ -24,8 +24,10 @@ def get_downloaded_value(size: int) -> float:
         return size
     elif size < 1_048_576:
         return size / 1024
-    else:
+    elif size < 1_073_741_824:
         return size / 1_048_576
+    else:
+        return size / 1_073_741_824
 
 
 def get_progress_text(stopwatch, dl_total: float, dl_temp: float) -> tuple:

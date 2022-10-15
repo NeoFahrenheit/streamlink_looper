@@ -216,8 +216,11 @@ class Settings(wx.Dialog):
         ''' Removes a stremaer from the file. '''
 
         index = self.listBox.GetSelection()
-        name = self.appData['streamers_data'][index]['name']
+        if index == wx.NOT_FOUND:
+            dlg = wx.MessageDialog(self, f"Please, select a streamer to remove.", 'No streamer selected', wx.ICON_ERROR)
+            return
 
+        name = self.appData['streamers_data'][index]['name']
         dlg = wx.MessageDialog(self, f"Are you sure you want to remove {name}?", 'Removing streamer', wx.ICON_WARNING | wx.YES_NO)
         res = dlg.ShowModal()
 

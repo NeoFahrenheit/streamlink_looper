@@ -41,18 +41,7 @@ class Download(Thread):
         filename = f"{self.name}_{time_started}"
 
         pub.subscribe(self.OnTimer, 'ping-timer')
-        file = open(f"{self.dir}/{filename}.ts", "ab+")
-
-        while True:
-            try:
-                data = self.stream_data.read(1024)
-                self.dl_total += len(data)
-                self.dl_temp += len(data)
-                file.write(data)
-            except:
-                break
-
-        file.close()
+        self.start_download(filename)
         CallAfter(pub.sendMessage, topicName='delete-panel', name=self.name)
 
         now = datetime.now()
@@ -77,16 +66,25 @@ class Download(Thread):
         try:
             streams = self.session.streams(self.url)
             self.stream_data = streams["best"].open()
-        except streamlink.NoPluginError:
-            print('This website is not supported')
-            return False
-        except streamlink.PluginError:
-            print('The stream is offline or has endend')
-            return False
-        except streamlink.StreamlinkError:
+        except:
             return False
 
         return True
+
+    def start_download(self, filename: str):
+        file = open(f"{self.dir}/{filename}.ts", "ab+")
+
+        while True:
+            try:
+                data = self.stream_data.read(1024)
+                self.dl_total += len(data)
+                self.dl_temp += len(data)
+                file.write(data)
+            except:
+                break
+
+        file.close()
+
 
     def OnTimer(self):
         ''' Called every second. '''
