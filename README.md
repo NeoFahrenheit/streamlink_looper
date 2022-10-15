@@ -26,6 +26,7 @@ Now, you can add your favorite streams to the software so you can never lose a l
  - Finish setting up the logic for the Preferences in the Settings window.
  - Add the feature to stop and pause the scheduler.
  - Add the feature to check if a specific streamer is online immediately.
+ - Close the threads correctly when the app is closed.
 
 ## Rename a file
 
@@ -45,3 +46,5 @@ All the other libraries should come with Python by default. At a later point, wh
 ## Contributing
 
 All contribution is welcomed. The software is in the start part of it's development and all help is apreciated.
+
+![Image of the main window with some streams being downloaded.](https://i.imgur.com/NxzMso9.png)
