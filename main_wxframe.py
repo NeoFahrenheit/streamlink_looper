@@ -1,7 +1,6 @@
 import os
 import wx
 import wx.richtext as rt
-import wx.lib.scrolledpanel as scrolled
 import subprocess
 from pubsub import pub
 import json
@@ -36,7 +35,7 @@ class MainFrame(wx.Frame):
         self.CenterOnScreen()
 
         pub.subscribe(self.UpdateDownloadInfo, 'update-download-info')
-        pub.subscribe(self.DeletePanel, 'delete-panel')
+        pub.subscribe(self.DeleteRow, 'delete-panel')
         pub.subscribe(self.SaveFile, 'save-file')
         pub.subscribe(self.Log, 'log')
         pub.subscribe(self.LogStreamEnded, 'log-stream-ended')
@@ -89,13 +88,21 @@ class MainFrame(wx.Frame):
         master = wx.BoxSizer(wx.HORIZONTAL)
         self.scrolledSizer = wx.BoxSizer(wx.VERTICAL)
 
-        self.scrolled = scrolled.ScrolledPanel(self.panel, -1, style=wx.SUNKEN_BORDER)
-        self.scrolled.SetSizer(self.scrolledSizer)
+        self.listCtrl = wx.ListCtrl(self.panel, -1, style=wx.LC_REPORT | wx.LC_HRULES)
+        self.listCtrl.InsertColumn(0, 'Name', wx.LIST_FORMAT_CENTRE)
+        self.listCtrl.InsertColumn(1, 'Time', wx.LIST_FORMAT_CENTRE)
+        self.listCtrl.InsertColumn(2, 'Size', wx.LIST_FORMAT_CENTRE)
+        self.listCtrl.InsertColumn(3, 'Speed', wx.LIST_FORMAT_CENTRE)
+
+        self.listCtrl.SetColumnWidth(0, 200)
+        self.listCtrl.SetColumnWidth(1, 100)
+        self.listCtrl.SetColumnWidth(2, 100)
+        self.listCtrl.SetColumnWidth(3, 100)
 
         self.rt = rt.RichTextCtrl(self.panel, -1, style=wx.TE_READONLY)
         self.rt.GetCaret().Hide()
 
-        master.Add(self.scrolled, proportion=1, flag=wx.ALL | wx.EXPAND, border=5)
+        master.Add(self.listCtrl, proportion=1, flag=wx.ALL | wx.EXPAND, border=5)
         master.Add(self.rt, proportion=1, flag=wx.ALL | wx.EXPAND, border=5)
 
         self.panel.SetSizerAndFit(master)
@@ -104,7 +111,10 @@ class MainFrame(wx.Frame):
         menu = wx.MenuBar()
         file = wx.Menu()
         self.scheduler_menu = wx.Menu()
-        streamers = wx.Menu()
+
+        self.streamers_menu = []
+        self.checkSubmenu = wx.Menu()
+        self.stop_download = wx.Menu()
 
         settings = file.Append(-1, 'Settings', 'Open settings menu.')
         file.AppendSeparator()
@@ -113,13 +123,22 @@ class MainFrame(wx.Frame):
         start = self.scheduler_menu.Append(-1, 'Start', 'Start the scheduler.')
         pause = self.scheduler_menu.Append(-1, 'Pause', 'Pause the scheduler. The ongoing downloads remains active.')
         stop = self.scheduler_menu.Append(-1, 'Stop', 'Stop the scheduler and all ongoing downloads.')
-        
+
+        wait_time = wx.Menu()
+        wait_time.Append(-1, 'and put back in the queue')
+        wait_time.Append(-1, "and don't check for 8 hours")
+        wait_time.Append(-1, "and don't check for 16 hours")
+        wait_time.Append(-1, "and don't check for 24 hours")
+
         users = [name['name'] for name in self.appData['streamers_data']]
         for name in users:
-            streamers.Append(-1, name, f"Check if {name} is online now.")
+            self.checkSubmenu.Append(-1, name, helpString=f"Check if {name} is online now.")
+            self.stop_download.Append(-1, name, subMenu=wait_time,)
 
-        self.scheduler_menu.Append(self.ID.SCHEDULER, 'Check now...', streamers)
-        self.scheduler_menu.Enable(self.ID.SCHEDULER, False)
+        self.scheduler_menu.Append(self.ID.SCHEDULER, 'Check now...', self.checkSubmenu)
+        self.scheduler_menu.Append(self.ID.SCHEDULER, 'Stop download from...', self.stop_download)
+
+        #self.scheduler_menu.Enable(self.ID.SCHEDULER, False)
 
         self.Bind(wx.EVT_MENU, self.OnSettings, settings)
         self.Bind(wx.EVT_MENU, self.OnStart, start)
@@ -128,35 +147,9 @@ class MainFrame(wx.Frame):
         menu.Append(self.scheduler_menu, 'Scheduler')
         self.SetMenuBar(menu)
 
-    def GetStreamerPanel(self, streamer: str) -> wx.Panel:
-        ''' Returns a Horizontal Sizer about a specific streamer. '''
-
-        streamer_name = streamer['name']
-
-        panel = wx.Panel(self.scrolled, name=streamer_name)
-        panel.SetBackgroundColour('#ddd3ed')
-        sizer = wx.BoxSizer(wx.HORIZONTAL)
-
-        textSize = (100, 23)
-        name_t = wx.StaticText(panel, -1, streamer_name, size=textSize, style=wx.ALIGN_LEFT, name=streamer_name)
-        clock = wx.StaticText(panel, -1, '00:00:00', size=textSize, style=wx.ALIGN_RIGHT, name=streamer_name)
-        file_size = wx.StaticText(panel, -1, '0 B', size=textSize, style=wx.ALIGN_RIGHT, name=streamer_name)
-        speed = wx.StaticText(panel, -1, '0 B/s', size=textSize, style=wx.ALIGN_RIGHT, name=streamer_name)
-
-        sizer.Add(name_t, flag=wx.ALL, border=3)
-        sizer.Add(clock, flag=wx.ALL, border=3)
-        sizer.Add(file_size, flag=wx.ALL, border=3)
-        sizer.Add(speed, flag=wx.ALL, border=3)
-
-        panel.SetSizer(sizer)
-        return panel
-
     def AddStreamer(self, streamer: dict):
         
-        panel = self.GetStreamerPanel(streamer)
-
-        self.scrolledSizer.Add(panel, flag=wx.ALL | wx.EXPAND, border=10)
-        self.scrolled.SendSizeEvent()
+        self.listCtrl.Append([streamer['name'], '00:00:00', '0 B', '0 B/s'])
 
     def Log(self, streamer: str, time: str, status: bool):
         ''' Adds to the log on the main window. '''
@@ -220,25 +213,24 @@ class MainFrame(wx.Frame):
 
         pub.sendMessage('ping-timer')
 
-    def UpdateDownloadInfo(self, name: str, watch: str, size: float, speed: float):
+    def UpdateDownloadInfo(self, name: str, watch: str | None, size: float | None, speed: float | None):
         ''' Updates a wx.Panel with a download info on `self.scrolled`. '''
 
-        children = self.scrolled.GetChildren()
-        for panel in children:
-            if panel.GetName() == name:
-                static_text_list = panel.GetChildren()
-                static_text_list[1].SetLabel(watch)
-                static_text_list[2].SetLabel(size)
-                static_text_list[3].SetLabel(speed)
-
+        for i in range (0, self.listCtrl.GetItemCount()):
+            if self.listCtrl.GetItemText(i, 0) == name:
+                if watch:
+                    self.listCtrl.SetItem(i, 1, watch)
+                if size:
+                    self.listCtrl.SetItem(i, 2, size)
+                if speed:
+                    self.listCtrl.SetItem(i, 3, speed)
+                    
                 return
 
-    def DeletePanel(self, name: str):
-        ''' Deletes a wx.Panel from the scrolledPanel. '''
+    def DeleteRow(self, name: str):
+        ''' Deletes a row in the wx.ListCtrl. '''
 
-        children = self.scrolled.GetChildren()
-        for panel in children:
-            if panel.GetName() == name:
-                panel.Destroy()
-                self.scrolled.SendSizeEvent()
+        for i in range (0, self.listCtrl.GetItemCount()):
+            if self.listCtrl.GetItemText(i, 0) == name:
+                self.listCtrl.DeleteItem(i)
                 return

@@ -16,8 +16,7 @@ Now, you can add your favorite streams to the software so you can never lose a l
 
 ## Current bugs and problems
 
- - The app uses too much memory and CPU. Optimization is needed.
- - Reported download speed is inconsistent.
+ - Reported download speed is inconsistent and it takes too long to update.
  - Sometimes when a stream is checked, the app lags a bit causing the timer for freeze for one or two seconds and causing problems with the formatting of text strings to the log.
 
 ## TODO
@@ -39,7 +38,7 @@ First, you need to make sure if you have all the dependencies installed.
  2. [pypubsub](https://pypubsub.readthedocs.io/en/v4.0.3/installation.html)
  3. [m3u8](https://github.com/globocom/m3u8)
  4. [streamlink](https://pypi.org/project/streamlink/)
- 5. [ffmpeg](https://ffmpeg.org/download.html) on PATH
+ 5. [ffmpeg](https://ffmpeg.org/download.html) on PATH (Optional)
 
 All the other libraries should come with Python by default. At a later point, when the software becames more robust, an *.exe* installer will be provided.
 

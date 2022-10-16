@@ -179,6 +179,7 @@ class Settings(wx.Dialog):
         data['name'] = name
         data['priority'] = priority
         data['quality'] = quality
+        data['sleep_until'] = ''
         data['args'] = ['streamlink', url, quality, '-o']
 
         return data

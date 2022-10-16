@@ -1,15 +1,12 @@
 import os
+import time
 import sys
 from wx import CallAfter
-import streamlink
-import requests
 import subprocess
-import m3u8
 from pubsub import pub
 from threading import Thread
 import stopwatch
 import utilities as util
-from datetime import datetime
 
 class Download(Thread):
 
@@ -26,9 +23,6 @@ class Download(Thread):
 
         self.dl_total = 0
         self.dl_temp = 0
-        self.last_part = 0
-        self.j = 0
-        self.m3u8_obj = None
 
     def run(self):
         ''' Runs the thread. '''
@@ -36,16 +30,14 @@ class Download(Thread):
         self.stopwatch = stopwatch.StopWatch()
         pub.subscribe(self.KillDownloadThread, 'kill-download-threads')
 
-        now = datetime.now()
-        time_started = now.strftime("%Y-%m-%d_%H-%M-%S")
+        time_started = time.strftime("%Y-%m-%d__%H-%M-%S")
         filename = f"{self.name}_{time_started}"
 
         pub.subscribe(self.OnTimer, 'ping-timer')
         self.start_download(filename)
         CallAfter(pub.sendMessage, topicName='delete-panel', name=self.name)
 
-        now = datetime.now()
-        time_ended = now.strftime("%H:%M:%S")
+        time_ended = time.strftime("%H-%M-%S")
         CallAfter(pub.sendMessage, topicName='log-stream-ended', streamer=self.name, time=time_ended)
 
         # Changing the container of the stream to .mp4. This should be very fast.
@@ -73,16 +65,24 @@ class Download(Thread):
 
     def start_download(self, filename: str):
         file = open(f"{self.dir}/{filename}.ts", "ab+")
+ 
+        start = time.perf_counter()
+        data = self.stream_data.read(1024)
 
-        while True:
-            try:
-                data = self.stream_data.read(1024)
-                self.dl_total += len(data)
-                self.dl_temp += len(data)
-                file.write(data)
-            except:
-                break
+        while data:
+            self.dl_total += len(data)
+            self.dl_temp += len(data)
+            
+            diff = time.perf_counter() - start
+            if diff > 1:
+                size, speed = util.get_progress_text(self.dl_total, self.dl_temp, diff)
+                start = time.perf_counter()
 
+                CallAfter(pub.sendMessage, topicName='update-download-info', name=self.name, watch=None, size=size, speed=speed)
+                self.dl_temp = 0
+
+            file.write(data)
+            data = self.stream_data.read(1024)
         file.close()
 
 
@@ -90,10 +90,8 @@ class Download(Thread):
         ''' Called every second. '''
 
         self.stopwatch.ping()
-
-        watch, size, speed = util.get_progress_text(self.stopwatch, self.dl_total, self.dl_temp)
-        CallAfter(pub.sendMessage, topicName='update-download-info', name=self.name, watch=watch, size=size, speed=speed)
-        self.dl_temp = 0
+        CallAfter(pub.sendMessage, topicName='update-download-info', 
+        name=self.name, watch=self.stopwatch.to_str(), size=None, speed=None)
 
     def KillDownloadThread(self):
         ''' Sets the `self.isActive` to False to end this thread. '''
