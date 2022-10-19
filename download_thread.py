@@ -9,9 +9,10 @@ import stopwatch
 import utilities as util
 
 class Download(Thread):
-
-    def __init__(self, streamer: dict, dir: str, session):
+    def __init__(self, parent, streamer: dict, dir: str, session):
         Thread.__init__(self)
+
+        self.parent = parent
         self.isActive = True
         self.session = session
 
@@ -19,6 +20,7 @@ class Download(Thread):
         self.streamer = streamer
         self.url = streamer['url']
         self.name = streamer['name']
+        self.quality = streamer['quality']
         self.dir = dir
 
         self.dl_total = 0
@@ -37,7 +39,7 @@ class Download(Thread):
         self.start_download(filename)
         CallAfter(pub.sendMessage, topicName='delete-panel', name=self.name)
 
-        time_ended = time.strftime("%H-%M-%S")
+        time_ended = time.strftime("%H:%M:%S")
         CallAfter(pub.sendMessage, topicName='log-stream-ended', streamer=self.name, time=time_ended)
 
         # Changing the container of the stream to .mp4. This should be very fast.
@@ -49,6 +51,7 @@ class Download(Thread):
         os.remove(ts)
 
         pub.sendMessage('add-to-queue', streamer=self.streamer)
+        pub.sendMessage('remove-from-thread', name=self.name)
         sys.exit()
 
     def fetch_stream(self) -> bool:
@@ -57,7 +60,8 @@ class Download(Thread):
         # Will this catch streams end or stream offline? What about hostings? We don't want that.
         try:
             streams = self.session.streams(self.url)
-            self.stream_data = streams["best"].open()
+            print(streams.keys())
+            self.stream_data = streams['>480p'].open()
         except:
             return False
 
@@ -69,7 +73,7 @@ class Download(Thread):
         start = time.perf_counter()
         data = self.stream_data.read(1024)
 
-        while data:
+        while data and self.isActive:
             self.dl_total += len(data)
             self.dl_temp += len(data)
             

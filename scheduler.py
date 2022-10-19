@@ -11,14 +11,10 @@ class Scheduler(Thread):
         Thread.__init__(self)
 
         self.session = streamlink.Streamlink()
-        self.session.set_option("ffmpeg-ffmpeg", "C:\\src\\ffmpeg\\bin\\ffmpeg.exe")
-        self.session.set_option("ffmpeg-fout", "matroska")
-        self.session.set_option("ffmpeg-video-transcode", "h264")
-        self.session.set_option("ffmpeg-audio-transcode", "aac")
-
-        self.isActive = True
+        self.isActive = False
         self.parent = parent
 
+        self.threads = []
         self.queue = []
         self.sec = 0
         self.wait_time = appData['wait_time']
@@ -28,11 +24,12 @@ class Scheduler(Thread):
         self.start()
 
     def run(self):
+        ''' Starts this thread's activity. '''
 
-        self.ChooseOne()
         pub.subscribe(self.OnTimer, 'ping-timer')
         pub.subscribe(self.AddToQueue, 'add-to-queue')
-        pub.subscribe(self.KillSchedulerThread, 'kill-scheduler-thread')
+        pub.subscribe(self.OnEdit, 'scheduler-edit')
+        pub.subscribe(self.RemoveFromThread, 'remove-from-thread')
 
     def PrepareData(self, data: dict):
         ''' Prepares the data for the scheduler. Everybody gets their wait time. 
@@ -45,6 +42,7 @@ class Scheduler(Thread):
             dic = {}
             dic['url'] = data['url']
             dic['name'] = data['name']
+            dic['quality'] = data['quality']
             dic['priority'] =  data['priority']
             dic['waited'] = 0
 
@@ -53,7 +51,7 @@ class Scheduler(Thread):
     def ChooseOne(self):
         ''' Chooses one stream from queue to be checked. '''
 
-        if not self.queue or not self.isActive:
+        if not self.queue:
             return
 
         wait_line = []
@@ -87,14 +85,26 @@ class Scheduler(Thread):
     def CheckStreamer(self, streamer: dict) -> bool:
         ''' Checks if a streamer is online. If so, starts it's download thread. '''
 
-        t = dt.Download(streamer, self.dir, self.session)
+        t = dt.Download(self, streamer, self.dir, self.session)
 
         if t.fetch_stream():
             t.start()
+            self.threads.append(t)
             return True
         else:
             del t
             return False
+
+    def RemoveFromThread(self, name: str) -> bool:
+        ''' `pubsub('remove-from-thread')` -> Removes the thread named with corresponding `name` from the self.threads. '''
+
+        for i in range (0, len(self.threads)):
+            if self.threads[i].name == name:
+                self.threads[i].isActive = False
+                del self.threads[i]
+                return True
+
+        return False
 
     def RemoveFromQueue(self, name: str):
         ''' Removes a stream from the queue. '''
@@ -110,14 +120,12 @@ class Scheduler(Thread):
         d = {}
         d['url'] = streamer['url']
         d['name'] = streamer['name']
+        d['quality'] = streamer['quality']
         d['priority'] = streamer['priority']
         d['waited'] = 0
 
-        self.queue.append(d)
-
     def OnTimer(self):
         if not self.isActive:
-            pub.unsubAll()
             return
 
         self.sec += 1
@@ -135,7 +143,12 @@ class Scheduler(Thread):
         time = now.strftime("%H:%M:%S")
         pub.sendMessage('log', streamer=name, time=time, status=status)
 
-    def KillSchedulerThread(self):
-        ''' Sets the `self.isActive` to False to end this thread. '''
+    def OnEdit(self, oldName: str, inData: dict):
+        ''' pubsub('scheduler-edit) -> A streamer has been edit though the setings menu. This function
+        changes the `self.queue` in the scheduler. If this stremaer thread is active, the changes will
+        remain unchanged there. '''
 
-        sys.exit()
+        for s in self.queue:
+            if s['name'] == oldName:
+                s = inData
+                return

@@ -18,13 +18,12 @@ class MainFrame(wx.Frame):
 
         self.SetTitle('Streamlink Lopper')
         self.SetSize(1000, 400)
-        self.scheduler_status = 'Stopped'
         self.status_bar = self.CreateStatusBar()
 
+        self.shouldScrollDown = True
         self.version = 0.1
         self.appData = {}
         self.scheduler = []
-        self.scheduler_thread = None
 
         self.timer = wx.Timer(self)
         self.Bind(wx.EVT_TIMER, self.OnTimer)
@@ -34,6 +33,7 @@ class MainFrame(wx.Frame):
         self.InitUI()
         self.CenterOnScreen()
 
+        self.scheduler_thread = Scheduler(self, self.appData)
         pub.subscribe(self.UpdateDownloadInfo, 'update-download-info')
         pub.subscribe(self.DeleteRow, 'delete-panel')
         pub.subscribe(self.SaveFile, 'save-file')
@@ -91,13 +91,15 @@ class MainFrame(wx.Frame):
         self.listCtrl = wx.ListCtrl(self.panel, -1, style=wx.LC_REPORT | wx.LC_HRULES)
         self.listCtrl.InsertColumn(0, 'Name', wx.LIST_FORMAT_CENTRE)
         self.listCtrl.InsertColumn(1, 'Time', wx.LIST_FORMAT_CENTRE)
-        self.listCtrl.InsertColumn(2, 'Size', wx.LIST_FORMAT_CENTRE)
-        self.listCtrl.InsertColumn(3, 'Speed', wx.LIST_FORMAT_CENTRE)
+        self.listCtrl.InsertColumn(2, 'Quality', wx.LIST_FORMAT_CENTRE)
+        self.listCtrl.InsertColumn(3, 'Size', wx.LIST_FORMAT_CENTRE)
+        self.listCtrl.InsertColumn(4, 'Speed', wx.LIST_FORMAT_CENTRE)
 
-        self.listCtrl.SetColumnWidth(0, 200)
-        self.listCtrl.SetColumnWidth(1, 100)
-        self.listCtrl.SetColumnWidth(2, 100)
-        self.listCtrl.SetColumnWidth(3, 100)
+        self.listCtrl.SetColumnWidth(0, 150)
+        self.listCtrl.SetColumnWidth(1, 80)
+        self.listCtrl.SetColumnWidth(2, 80)
+        self.listCtrl.SetColumnWidth(3, 80)
+        self.listCtrl.SetColumnWidth(4, 80)
 
         self.rt = rt.RichTextCtrl(self.panel, -1, style=wx.TE_READONLY)
         self.rt.GetCaret().Hide()
@@ -109,10 +111,11 @@ class MainFrame(wx.Frame):
 
     def InitMenu(self):
         menu = wx.MenuBar()
+
         file = wx.Menu()
         self.scheduler_menu = wx.Menu()
+        log = wx.Menu()
 
-        self.streamers_menu = []
         self.checkSubmenu = wx.Menu()
         self.stop_download = wx.Menu()
 
@@ -133,23 +136,33 @@ class MainFrame(wx.Frame):
         users = [name['name'] for name in self.appData['streamers_data']]
         for name in users:
             self.checkSubmenu.Append(-1, name, helpString=f"Check if {name} is online now.")
-            self.stop_download.Append(-1, name, subMenu=wait_time,)
+            self.stop_download.Append(-1, name, subMenu=wait_time)
 
         self.scheduler_menu.Append(self.ID.SCHEDULER, 'Check now...', self.checkSubmenu)
         self.scheduler_menu.Append(self.ID.SCHEDULER, 'Stop download from...', self.stop_download)
-
         #self.scheduler_menu.Enable(self.ID.SCHEDULER, False)
+        
+        log.Append(-1, 'Keep scrolled down', 'Keep the log scrolled down with every new message.', kind=wx.ITEM_CHECK)
+        ver_choices = wx.Menu()
+        ver_choices.Append(-1, 'All')
+        ver_choices.Append(-1, 'Only streams going online')
+        ver_choices.Append(-1, 'Only error messages')
+        log.Append(-1, 'Verbosity', subMenu=ver_choices)
 
         self.Bind(wx.EVT_MENU, self.OnSettings, settings)
         self.Bind(wx.EVT_MENU, self.OnStart, start)
+        self.Bind(wx.EVT_MENU, self.OnPause, pause)
+        self.Bind(wx.EVT_MENU, self.OnStop, stop)
 
         menu.Append(file, 'File')
         menu.Append(self.scheduler_menu, 'Scheduler')
+        menu.Append(log, 'Log')
+
         self.SetMenuBar(menu)
 
     def AddStreamer(self, streamer: dict):
         
-        self.listCtrl.Append([streamer['name'], '00:00:00', '0 B', '0 B/s'])
+        self.listCtrl.Append([streamer['name'], '00:00:00', '1080p60', '0 B', '0 B/s'])
 
     def Log(self, streamer: str, time: str, status: bool):
         ''' Adds to the log on the main window. '''
@@ -159,7 +172,9 @@ class MainFrame(wx.Frame):
         self.rt.WriteText(f" was checked at {time} and it was ")
         self.WriteStreamerStatus(status)
         self.rt.WriteText(".\n")
-        self.rt.MoveToLineEnd()
+
+        if self.shouldScrollDown:
+            self.rt.ShowPosition(self.rt.GetLastPosition())
 
     def LogStreamEnded(self, streamer: str, time: str):
         ''' Adds to the log notifying about the ended stream. '''
@@ -168,7 +183,9 @@ class MainFrame(wx.Frame):
         self.WriteStreamerName(streamer)
         self.rt.WriteText(f" stream ended at {time}")
         self.rt.WriteText(".\n")
-        self.rt.MoveToLineEnd()
+
+        if self.shouldScrollDown:
+            self.rt.ShowPosition(self.rt.GetLastPosition())
 
     def WriteStreamerName(self, name: str):
 
@@ -203,10 +220,23 @@ class MainFrame(wx.Frame):
     def OnStart(self, event):
         ''' Starts the scheduler. '''
 
-        if self.scheduler_status != 'Running':
-            self.scheduler_thread = Scheduler(self, self.appData)
-            self.scheduler_status = 'Running'
+        if not self.scheduler_thread.isActive:
+            self.scheduler_thread.isActive = True
+            self.scheduler_thread.ChooseOne()
+            
             self.scheduler_menu.Enable(self.ID.SCHEDULER, True)
+
+    def OnPause(self, event):
+        ''' Stops the scheduler (the thread remains active). The ongoing downloads remains active. '''
+
+        self.scheduler_thread.isActive = False
+
+    def OnStop(self, event):
+        ''' Stop the scheduler (the thread remains active) and all ongoing downloads. '''
+
+        if self.scheduler_thread.isActive:
+            pub.sendMessage('kill-download-threads')
+            self.scheduler_thread.isActive = False
 
     def OnTimer(self, event):
         ''' Called every second. '''
@@ -221,9 +251,9 @@ class MainFrame(wx.Frame):
                 if watch:
                     self.listCtrl.SetItem(i, 1, watch)
                 if size:
-                    self.listCtrl.SetItem(i, 2, size)
+                    self.listCtrl.SetItem(i, 3, size)
                 if speed:
-                    self.listCtrl.SetItem(i, 3, speed)
+                    self.listCtrl.SetItem(i, 4, speed)
                     
                 return
 

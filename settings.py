@@ -21,8 +21,8 @@ class Settings(wx.Dialog):
         streamers = self.GetStreamersPanel()
         preferences = self.GetPreferencesPanel()
 
-        self.notebook.AddPage(preferences, 'Preferences')
         self.notebook.AddPage(streamers, 'Streamers')
+        self.notebook.AddPage(preferences, 'Preferences')
 
         self.SetSizerAndFit(sizer)
 
@@ -65,23 +65,23 @@ class Settings(wx.Dialog):
 
         urlSizer = wx.BoxSizer(wx.HORIZONTAL)
         self.urlCtrl = wx.TextCtrl(panel, -1, size=(250, 23))
-        urlSizer.Add(wx.StaticText(panel, -1, 'URL :', size=textSize, style=wx.ALIGN_RIGHT))
+        urlSizer.Add(wx.StaticText(panel, -1, 'URL :', size=textSize, style=wx.ALIGN_RIGHT), flag=wx.TOP, border=3)
         urlSizer.Add(self.urlCtrl, flag=wx.LEFT, border=15)
 
         nameSizer = wx.BoxSizer(wx.HORIZONTAL)
         self.nameCtrl = wx.TextCtrl(panel, -1, size=(250, 23))
-        nameSizer.Add(wx.StaticText(panel, -1, 'Name :', size=textSize, style=wx.ALIGN_RIGHT))
+        nameSizer.Add(wx.StaticText(panel, -1, 'Name :', size=textSize, style=wx.ALIGN_RIGHT), flag=wx.TOP, border=3)
         nameSizer.Add(self.nameCtrl, flag=wx.LEFT, border=15)
 
         prioritySizer = wx.BoxSizer(wx.HORIZONTAL)
         self.priorityCtrl = wx.SpinCtrl(panel, -1, size=(50, 23), min=1, max=5)
-        prioritySizer.Add(wx.StaticText(panel, -1, 'Priority :', size=textSize, style=wx.ALIGN_RIGHT))
+        prioritySizer.Add(wx.StaticText(panel, -1, 'Priority :', size=textSize, style=wx.ALIGN_RIGHT), flag=wx.TOP, border=3)
         prioritySizer.Add(self.priorityCtrl, flag=wx.LEFT, border=15)
 
         qualitySizer = wx.BoxSizer(wx.HORIZONTAL)
-        choices = ['best', '1080p', '720p', '480p', '360p', 'wrost']
+        choices = ['source', 'high', 'medium', 'low', 'audio']
         self.qualityCombo = wx.ComboBox(panel, -1, choices[0], choices=choices, size=(100, 23), style=wx.CB_READONLY)
-        qualitySizer.Add(wx.StaticText(panel, -1, 'Quality :', size=textSize, style=wx.ALIGN_RIGHT))
+        qualitySizer.Add(wx.StaticText(panel, -1, 'Quality :', size=textSize, style=wx.ALIGN_RIGHT), flag=wx.TOP, border=3)
         qualitySizer.Add(self.qualityCombo, flag=wx.LEFT, border=15)
 
         detailsSizer.Add(urlSizer)
@@ -114,14 +114,14 @@ class Settings(wx.Dialog):
 
         waitSizer = wx.BoxSizer(wx.HORIZONTAL)
         self.waitCtrl = wx.SpinCtrl(panel, -1, size=(60, 23), min=5, max=120, initial=15)
-        waitSizer.Add(wx.StaticText(panel, -1, 'Wait time :', size=textSize, style=wx.ALIGN_RIGHT), flag=wx.TOP, border=3)
+        waitSizer.Add(wx.StaticText(panel, -1, 'Wait time :', size=((60, 23))), flag=wx.TOP, border=3)
         waitSizer.Add(self.waitCtrl, flag=wx.LEFT, border=15)
 
-        verbositySizer = wx.BoxSizer(wx.HORIZONTAL)
-        choices = ['All', 'Only streams going online', 'Only error messages']
-        self.choicesCtrl = wx.ComboBox(panel, -1, choices[0], size=(160, 23), choices=choices, style=wx.CB_READONLY)
-        verbositySizer.Add(wx.StaticText(panel, -1, 'Log verbosity :', size=textSize, style=wx.ALIGN_RIGHT), flag=wx.TOP, border=3)
-        verbositySizer.Add(self.choicesCtrl, flag=wx.LEFT, border=15)
+        # verbositySizer = wx.BoxSizer(wx.HORIZONTAL)
+        # choices = ['All', 'Only streams going online', 'Only error messages']
+        # self.choicesCtrl = wx.ComboBox(panel, -1, choices[0], size=(160, 23), choices=choices, style=wx.CB_READONLY)
+        # verbositySizer.Add(wx.StaticText(panel, -1, 'Log verbosity :', size=textSize, style=wx.ALIGN_RIGHT), flag=wx.TOP, border=3)
+        # verbositySizer.Add(self.choicesCtrl, flag=wx.LEFT, border=15)
 
         logSizer = wx.BoxSizer(wx.HORIZONTAL)
         self.logCtrl = wx.SpinCtrl(panel, -1, size=(70, 23), min=5, max=10000, initial=1000)
@@ -145,8 +145,10 @@ class Settings(wx.Dialog):
 
         dirSizer = wx.BoxSizer(wx.HORIZONTAL)
         self.dirCtrl = wx.TextCtrl(panel, -1, '', size=(300, 23))
+        dirBtn = wx.Button(panel, -1, 'Choose')
         dirSizer.Add(wx.StaticText(panel, -1, 'Download folder :', size=textSize, style=wx.ALIGN_RIGHT), flag=wx.TOP, border=3)
         dirSizer.Add(self.dirCtrl, flag=wx.LEFT, border=15)
+        dirSizer.Add(dirBtn, flag=wx.LEFT, border=15)
 
         btnSizer = wx.BoxSizer(wx.HORIZONTAL)
         self.defaultBtn = wx.Button(panel, -1, 'Reset to defaults')
@@ -154,8 +156,8 @@ class Settings(wx.Dialog):
         btnSizer.Add(self.defaultBtn, flag=wx.RIGHT, border=15)
         btnSizer.Add(self.saveBtn, flag=wx.RIGHT, border=10)
 
-        sizer.Add(waitSizer, flag=wx.TOP, border=10)
-        sizer.Add(verbositySizer, flag=wx.TOP, border=10)
+        sizer.Add(waitSizer, flag=wx.TOP | wx.LEFT, border=10)
+        # sizer.Add(verbositySizer, flag=wx.TOP, border=10)
         sizer.Add(logSizer, flag=wx.TOP, border=10)
         sizer.Add(startSizer, flag=wx.TOP | wx.LEFT, border=10)
         sizer.Add(minimizedSizer, flag=wx.TOP | wx.LEFT, border=10)
@@ -177,10 +179,8 @@ class Settings(wx.Dialog):
         
         data['url'] = url
         data['name'] = name
-        data['priority'] = priority
         data['quality'] = quality
-        data['sleep_until'] = ''
-        data['args'] = ['streamlink', url, quality, '-o']
+        data['priority'] = priority
 
         return data
 
@@ -222,13 +222,15 @@ class Settings(wx.Dialog):
             return
 
         name = self.appData['streamers_data'][index]['name']
-        dlg = wx.MessageDialog(self, f"Are you sure you want to remove {name}?", 'Removing streamer', wx.ICON_WARNING | wx.YES_NO)
+        dlg = wx.MessageDialog(self, f"Are you sure you want to remove {name}? If there is a livestream from it being downloaded, it will be canceled.",
+         'Removing streamer', wx.ICON_WARNING | wx.YES_NO)
         res = dlg.ShowModal()
 
         if res == wx.ID_YES:
             self.listBox.Delete(index)
             del self.appData['streamers_data'][index]
             pub.sendMessage('save-file')
+            pub.sendMessage('remove-from-thread', name=name)
             self.OnListBox(None)
 
     def OnCreate(self, event):
@@ -244,7 +246,9 @@ class Settings(wx.Dialog):
                 'Streamer already exists', wx.ICON_ERROR)
                 return
         
+        data['wait_until'] = 0 
         self.appData['streamers_data'].append(data)
+
         pub.sendMessage('save-file')
         self.listBox.Append(data['name'])
 
@@ -255,12 +259,13 @@ class Settings(wx.Dialog):
             wx.MessageBox('Please, fill all the information in the text fields.', 'Empty Fields', wx.ICON_ERROR)
             return
 
-        data = self.GetFieldsData()
         index = self.listBox.GetSelection()
+        data = self.GetFieldsData()
         if index == wx.NOT_FOUND:
             wx.MessageBox('Please, select a streamer to edit.', 'No streamer selected', wx.ICON_ERROR)
             return
 
+        oldName = self.listBox.GetString(index)
         # If the user is editing without changing the name, we need a exception for cheking
         # that. Hence, i != index.
         for i in range (0, len(self.appData['streamers_data'])):
@@ -269,8 +274,17 @@ class Settings(wx.Dialog):
                 'Streamer already exists', wx.ICON_ERROR)
                 return
     
-        self.appData['streamers_data'][index] = data
+        self.EditStreamerOnFile(index, oldName, data)
         self.listBox.SetString(index, data['name'])
-        pub.sendMessage('save-file')
-
         wx.MessageBox(f"{data['name']} was successfully saved.", 'Success', wx.ICON_INFORMATION)
+
+    def EditStreamerOnFile(self, index: int, oldName: str, inData: dict):
+        ''' Edit the stream in the given index with inData. '''
+
+        self.appData['streamers_data'][index]['url'] = inData['url']
+        self.appData['streamers_data'][index]['name'] = inData['name']
+        self.appData['streamers_data'][index]['quality'] = inData['quality']
+        self.appData['streamers_data'][index]['priority'] = inData['priority']
+        
+        pub.sendMessage('save-file')
+        pub.sendMessage('scheduler-edit', oldName=oldName, inData=inData)
