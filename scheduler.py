@@ -1,5 +1,4 @@
 import streamlink
-import sys
 from wx import CallAfter
 from threading import Thread
 import download_thread as dt
@@ -151,7 +150,11 @@ class Scheduler(Thread):
         changes the `self.queue` in the scheduler. If this stremaer thread is active, the changes will
         remain unchanged there. '''
 
-        for s in self.queue:
-            if s['name'] == oldName:
-                s = inData
+        for i in range(0, len(self.queue)):
+            if self.queue[i]['name'] == oldName:
+                self.queue[i]['name'] = inData['name']
+                self.queue[i]['url'] = inData['url']
+                self.queue[i]['priority'] = inData['priority']
+                self.queue[i]['quality'] = inData['quality']
                 return
+

@@ -79,7 +79,7 @@ class Settings(wx.Dialog):
         prioritySizer.Add(self.priorityCtrl, flag=wx.LEFT, border=15)
 
         qualitySizer = wx.BoxSizer(wx.HORIZONTAL)
-        choices = ['source', 'high', 'medium', 'low', 'audio']
+        choices = ['best', 'high', 'medium', 'low', 'worst', 'audio only']
         self.qualityCombo = wx.ComboBox(panel, -1, choices[0], choices=choices, size=(100, 23), style=wx.CB_READONLY)
         qualitySizer.Add(wx.StaticText(panel, -1, 'Quality :', size=textSize, style=wx.ALIGN_RIGHT), flag=wx.TOP, border=3)
         qualitySizer.Add(self.qualityCombo, flag=wx.LEFT, border=15)
@@ -275,9 +275,11 @@ class Settings(wx.Dialog):
                 wx.MessageBox('A streamer with this name already exists. Please, choose another one.', 
                 'Streamer already exists', wx.ICON_ERROR)
                 return
-    
+
         self.EditStreamerOnFile(index, oldName, data)
         self.listBox.SetString(index, data['name'])
+        pub.sendMessage('scheduler-edit', oldName=oldName, inData=data)
+
         wx.MessageBox(f"{data['name']} was successfully saved.", 'Success', wx.ICON_INFORMATION)
 
     def EditStreamerOnFile(self, index: int, oldName: str, inData: dict):

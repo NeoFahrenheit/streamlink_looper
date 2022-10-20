@@ -243,18 +243,20 @@ class MainFrame(wx.Frame):
 
         pub.sendMessage('ping-timer')
 
-    def UpdateDownloadInfo(self, name: str, watch: str, size: float, speed: float):
+    def UpdateDownloadInfo(self, name: str, watch: str, quality: str, size: float, speed: float):
         ''' Updates a wx.Panel with a download info on `self.scrolled`. '''
 
         for i in range (0, self.listCtrl.GetItemCount()):
             if self.listCtrl.GetItemText(i, 0) == name:
                 if watch:
                     self.listCtrl.SetItem(i, 1, watch)
+                if quality:
+                    self.listCtrl.SetItem(i, 2, quality)
                 if size:
                     self.listCtrl.SetItem(i, 3, size)
                 if speed:
                     self.listCtrl.SetItem(i, 4, speed)
-                    
+
                 return
 
     def DeleteRow(self, name: str):
