@@ -231,6 +231,7 @@ class Settings(wx.Dialog):
             del self.appData['streamers_data'][index]
             pub.sendMessage('save-file')
             pub.sendMessage('remove-from-thread', name=name)
+            pub.sendMessage('remove-from-queue', name=name)
             self.OnListBox(None)
 
     def OnCreate(self, event):
@@ -246,8 +247,9 @@ class Settings(wx.Dialog):
                 'Streamer already exists', wx.ICON_ERROR)
                 return
         
-        data['wait_until'] = 0 
+        data['wait_until'] = ''
         self.appData['streamers_data'].append(data)
+        pub.sendMessage('add-to-queue', streamer=data)
 
         pub.sendMessage('save-file')
         self.listBox.Append(data['name'])

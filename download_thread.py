@@ -61,7 +61,7 @@ class Download(Thread):
         try:
             streams = self.session.streams(self.url)
             print(streams.keys())
-            self.stream_data = streams['>480p'].open()
+            self.stream_data = streams['best'].open()
         except:
             return False
 

@@ -28,6 +28,7 @@ class Scheduler(Thread):
 
         pub.subscribe(self.OnTimer, 'ping-timer')
         pub.subscribe(self.AddToQueue, 'add-to-queue')
+        pub.subscribe(self.RemoveFromQueue, 'remove-from-queue')
         pub.subscribe(self.OnEdit, 'scheduler-edit')
         pub.subscribe(self.RemoveFromThread, 'remove-from-thread')
 
@@ -56,7 +57,7 @@ class Scheduler(Thread):
 
         wait_line = []
 
-        # We check first how's the wait is for everybody.
+        # We check first how the wait is for everybody.
         for streamer in self.queue:
             waited = streamer['waited']
             limit = self.wait_time * 3 * streamer['priority']
@@ -123,6 +124,8 @@ class Scheduler(Thread):
         d['quality'] = streamer['quality']
         d['priority'] = streamer['priority']
         d['waited'] = 0
+
+        self.queue.append(d)
 
     def OnTimer(self):
         if not self.isActive:
