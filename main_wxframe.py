@@ -1,5 +1,4 @@
 import os
-from sched import scheduler
 import wx
 import wx.richtext as rt
 import wx.adv

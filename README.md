@@ -17,18 +17,11 @@ Now, you can add your favorite streams to the software so you can never lose a l
 ## Current bugs and problems
 
  - Reported download speed is inconsistent and it takes too long to update.
- - Sometimes when a stream is checked, the app lags a bit causing the timer for freeze for one or two seconds and causing problems with the formatting of text strings to the log.
 
 ## TODO
 
  - Different scheduler for each different livestream websites. Set different wait time for each of them. They must not conflict with each other.
- - Finish setting up the logic for the Preferences in the Settings window.
- - Add the feature to stop and pause the scheduler.
  - Add the feature to check if a specific streamer is online immediately.
-
-## Rename a file
-
-You can rename the current file by clicking the file name in the navigation bar or by clicking the **Rename** button in the file explorer.
 
 ## How to run the app
 
@@ -36,8 +29,8 @@ First, you need to make sure if you have all the dependencies installed.
 
  1. [wxPython](https://www.wxpython.org/pages/downloads/)
  2. [pypubsub](https://pypubsub.readthedocs.io/en/v4.0.3/installation.html)
- 3. [m3u8](https://github.com/globocom/m3u8)
- 4. [streamlink](https://pypi.org/project/streamlink/)
+ 3. [streamlink](https://pypi.org/project/streamlink/)
+ 4. [notify.py](https://github.com/ms7m/notify-py)
  5. [ffmpeg](https://ffmpeg.org/download.html) on PATH (Optional)
 
 All the other libraries should come with Python by default. At a later point, when the software becames more robust, an *.exe* installer will be provided.
