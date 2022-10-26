@@ -1,5 +1,10 @@
+import os
 import wx
+import wx.richtext as rt
 from pubsub import pub
+import platform
+import webbrowser
+import streamlink
 
 class Settings(wx.Dialog):
     def __init__(self, parent, appData: list):
@@ -12,6 +17,8 @@ class Settings(wx.Dialog):
         self.LoadData()
 
         self.CenterOnParent()
+
+        self.Bind(wx.EVT_CLOSE, self.OnClose)
 
     def InitUI(self) -> None:
         sizer = wx.BoxSizer(wx.VERTICAL)
@@ -27,7 +34,7 @@ class Settings(wx.Dialog):
         self.SetSizerAndFit(sizer)
 
     def LoadData(self) -> None:
-        ''' Load the data for the streamers. '''
+        ''' Load the data for the streamers and the controls. '''
 
         streamers = self.appData['streamers_data']
         if streamers:
@@ -36,7 +43,13 @@ class Settings(wx.Dialog):
 
             self.listBox.SetSelection(0)
             self.OnListBox(None)
-            
+        
+        self.waitCtrl.SetValue(self.appData['wait_time'])
+        self.startCheckBox.SetValue(self.appData['start_on_scheduler'])
+        self.trayMinimizeCheckBox.SetValue(self.appData['tray_on_minimized'])
+        self.trayCloseCheckBox.SetValue(self.appData['tray_on_closed'])
+        self.notificationCheckBox.SetValue(self.appData['send_notifications'])
+        self.dirCtrl.SetValue(self.appData['download_dir'])
 
     def GetStreamersPanel(self) -> wx.Panel:
         ''' Gets the streamer panel. '''
@@ -99,7 +112,7 @@ class Settings(wx.Dialog):
         buttonsSizer.Add(removeBtn, flag=wx.LEFT, border=10)
 
         listSizer.Add(buttonsSizer, proportion=1, flag=wx.BOTTOM, border=10)
-        listSizer.Add(self.listBox, proportion=7, flag=wx.EXPAND)
+        listSizer.Add(self.listBox, proportion=5, flag=wx.EXPAND)
 
         panel.SetSizer(masterSizer)
         return panel
@@ -117,53 +130,44 @@ class Settings(wx.Dialog):
         waitSizer.Add(wx.StaticText(panel, -1, 'Wait time :', size=((60, 23))), flag=wx.TOP, border=3)
         waitSizer.Add(self.waitCtrl, flag=wx.LEFT, border=15)
 
-        # verbositySizer = wx.BoxSizer(wx.HORIZONTAL)
-        # choices = ['All', 'Only streams going online', 'Only error messages']
-        # self.choicesCtrl = wx.ComboBox(panel, -1, choices[0], size=(160, 23), choices=choices, style=wx.CB_READONLY)
-        # verbositySizer.Add(wx.StaticText(panel, -1, 'Log verbosity :', size=textSize, style=wx.ALIGN_RIGHT), flag=wx.TOP, border=3)
-        # verbositySizer.Add(self.choicesCtrl, flag=wx.LEFT, border=15)
-
-        logSizer = wx.BoxSizer(wx.HORIZONTAL)
-        self.logCtrl = wx.SpinCtrl(panel, -1, size=(70, 23), min=5, max=10000, initial=1000)
-        logSizer.Add(wx.StaticText(panel, -1, 'Clear the log after this many messages were written :', size=longTextSize, style=wx.ALIGN_RIGHT), flag=wx.TOP, border=3)
-        logSizer.Add(self.logCtrl, flag=wx.LEFT, border=15)
-
         startSizer = wx.BoxSizer(wx.HORIZONTAL)
         self.startCheckBox = wx.CheckBox(panel, -1)
         startSizer.Add(self.startCheckBox, flag=wx.RIGHT, border=10)
         startSizer.Add(wx.StaticText(panel, -1, 'Starts the scheduler when the app is opened', size=longTextSize))
+        self.Bind(wx.EVT_CHECKBOX, self.OnStartCheckBox, self.startCheckBox)
 
-        minimizedSizer = wx.BoxSizer(wx.HORIZONTAL)
-        self.minimizedCheckBox = wx.CheckBox(panel, -1)
-        minimizedSizer.Add(self.minimizedCheckBox, flag=wx.RIGHT, border=10)
-        minimizedSizer.Add(wx.StaticText(panel, -1, 'Open minimized when the computer starts', size=longTextSize))
+        trayMinimizeSizer = wx.BoxSizer(wx.HORIZONTAL)
+        self.trayMinimizeCheckBox = wx.CheckBox(panel, -1)
+        trayMinimizeSizer.Add(self.trayMinimizeCheckBox, flag=wx.RIGHT, border=10)
+        trayMinimizeSizer.Add(wx.StaticText(panel, -1, 'Go to system tray when minimized.', size=longTextSize))
+        self.Bind(wx.EVT_CHECKBOX, self.OnMinimizeTrayCheckBox, self.trayMinimizeCheckBox)
+
+        trayCloseSizer = wx.BoxSizer(wx.HORIZONTAL)
+        self.trayCloseCheckBox = wx.CheckBox(panel, -1)
+        trayCloseSizer.Add(self.trayCloseCheckBox, flag=wx.RIGHT, border=10)
+        trayCloseSizer.Add(wx.StaticText(panel, -1, 'Go to system tray when closed.', size=longTextSize))
+        self.Bind(wx.EVT_CHECKBOX, self.OnCloseTrayCheckBox, self.trayCloseCheckBox)
 
         notificationSizer = wx.BoxSizer(wx.HORIZONTAL)
         self.notificationCheckBox = wx.CheckBox(panel, -1)
         notificationSizer.Add(self.notificationCheckBox, flag=wx.RIGHT, border=10)
         notificationSizer.Add(wx.StaticText(panel, -1, 'Send notifications about streamers going online', size=longTextSize))
+        self.Bind(wx.EVT_CHECKBOX, self.OnNotificationCheckBox, self.notificationCheckBox)
 
         dirSizer = wx.BoxSizer(wx.HORIZONTAL)
         self.dirCtrl = wx.TextCtrl(panel, -1, '', size=(300, 23))
         dirBtn = wx.Button(panel, -1, 'Choose')
+        dirBtn.Bind(wx.EVT_BUTTON, self.OnChooseDir)
         dirSizer.Add(wx.StaticText(panel, -1, 'Download folder :', size=textSize, style=wx.ALIGN_RIGHT), flag=wx.TOP, border=3)
         dirSizer.Add(self.dirCtrl, flag=wx.LEFT, border=15)
         dirSizer.Add(dirBtn, flag=wx.LEFT, border=15)
 
-        btnSizer = wx.BoxSizer(wx.HORIZONTAL)
-        self.defaultBtn = wx.Button(panel, -1, 'Reset to defaults')
-        self.saveBtn = wx.Button(panel, -1, 'Save')
-        btnSizer.Add(self.defaultBtn, flag=wx.RIGHT, border=15)
-        btnSizer.Add(self.saveBtn, flag=wx.RIGHT, border=10)
-
         sizer.Add(waitSizer, flag=wx.TOP | wx.LEFT, border=10)
-        # sizer.Add(verbositySizer, flag=wx.TOP, border=10)
-        sizer.Add(logSizer, flag=wx.TOP, border=10)
         sizer.Add(startSizer, flag=wx.TOP | wx.LEFT, border=10)
-        sizer.Add(minimizedSizer, flag=wx.TOP | wx.LEFT, border=10)
+        sizer.Add(trayMinimizeSizer, flag=wx.TOP | wx.LEFT, border=10)
+        sizer.Add(trayCloseSizer, flag=wx.TOP | wx.LEFT, border=10)
         sizer.Add(notificationSizer, flag=wx.TOP | wx.LEFT, border=10)
         sizer.Add(dirSizer, flag=wx.TOP, border=10)
-        sizer.Add(btnSizer, flag=wx.TOP | wx.BOTTOM | wx.ALIGN_RIGHT, border=15)
 
         panel.SetSizer(sizer)
         return panel
@@ -247,7 +251,10 @@ class Settings(wx.Dialog):
                 'Streamer already exists', wx.ICON_ERROR)
                 return
         
+        data['ID'] = self.appData['ID_count']
         data['wait_until'] = ''
+
+        self.appData['ID_count'] += 1
         self.appData['streamers_data'].append(data)
         pub.sendMessage('add-to-queue', streamer=data)
 
@@ -292,3 +299,51 @@ class Settings(wx.Dialog):
         
         pub.sendMessage('save-file')
         pub.sendMessage('scheduler-edit', oldName=oldName, inData=inData)
+
+    def OnChooseDir(self, event):
+        """ Called when the user clicks the Choose Dir button. """
+
+        path = os.path.expanduser('~')
+        dialog = wx.DirDialog(self, 'Choose the download folder', f"{path}/Videos")
+        if dialog.ShowModal() == wx.ID_OK:
+            user_path = dialog.GetPath()
+            self.dirCtrl.SetValue(user_path)
+            self.appData['download_dir'] = user_path
+            pub.sendMessage('save-file')
+
+    def OnCloseTrayCheckBox(self, event):
+        """ Called when user clicks on close to system tray checkbox. """
+
+        obj = event.GetEventObject()
+        value = obj.GetValue()
+        self.appData['tray_on_closed'] = value
+        pub.sendMessage('save-file')
+    
+    def OnMinimizeTrayCheckBox(self, event):
+        """ Called when user clicks on minimize to system tray checkbox. """
+
+        obj = event.GetEventObject()
+        value = obj.GetValue()
+        self.appData['tray_on_minimized'] = value
+        pub.sendMessage('save-file')
+
+    def OnStartCheckBox(self, event):
+        """ Called when user clicks on start the scheduler when the app is opened checkbox. """
+
+        obj = event.GetEventObject()
+        value = obj.GetValue()
+        self.appData['start_on_scheduler'] = value
+        pub.sendMessage('save-file')
+
+    def OnNotificationCheckBox(self, event):
+        """ Called when user clicks on the notification checkbox. """
+
+        obj = event.GetEventObject()
+        value = obj.GetValue()
+        self.appData['send_notifications'] = value
+        pub.sendMessage('save-file')
+
+    def OnClose(self, event):
+        """ Called when the user tries to close the window. """
+
+        self.Destroy()

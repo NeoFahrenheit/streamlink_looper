@@ -1,10 +1,3 @@
-class ID():
-    ''' Using as enums. '''
-    
-    def __init__(self):
-        self.SCHEDULER = 1000
-
-
 def get_unit(size: float) -> str:
     unit = ''
     if size < 1024:

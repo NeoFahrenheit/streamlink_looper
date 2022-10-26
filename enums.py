@@ -1,0 +1,11 @@
+class ID:
+    PUT_BACK = 1000
+    WAIT_8 = 1001
+    WAIT_16 = 1002
+    WAIT_24 = 1003
+
+    MENU_CHECK = 1004
+    MENU_STOP = 1005
+
+    SCHEDULER = 1006
+    MENU_LOG_CHECKBOX = 1007
