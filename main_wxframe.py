@@ -203,7 +203,7 @@ class MainFrame(wx.Frame):
         
         self.listCtrl.Append([streamer['name'], '00:00:00', '1080p60', '0 B', '0 B/s'])
         if self.appData['send_notifications']:
-            self.notification.message = f"The streamer {streamer['name']} is online!"
+            self.notification.message = f"The {streamer['name']}'s stream is online!"
             self.notification.send(block=False)
 
     def Log(self, streamer: str, time: str, status: bool):
