@@ -4,6 +4,7 @@ from threading import Thread
 import download_thread as dt
 from pubsub import pub
 from datetime import datetime
+from enums import ID
 
 class Scheduler(Thread):
     def __init__(self, parent, appData):
@@ -74,9 +75,14 @@ class Scheduler(Thread):
         # We need to be careful. When we removed from the queue, our index
         # is no longer valid. It should be done last.
         if is_live:
+            name = self.queue[index]['name']
+
             CallAfter(self.parent.AddStreamer, self.queue[index])
-            CallAfter(self.AddToLog, self.queue[index]['name'], is_live)
-            self.RemoveFromQueue(self.queue[index]['name'])
+            CallAfter(self.AddToLog, name, is_live)
+            self.RemoveFromQueue(name)
+            
+            CallAfter(pub.sendMessage, topicName='remove-from-tree', name=name, parent_id=ID.TREE_FRIDGE)  
+            CallAfter(pub.sendMessage, topicName='remove-from-tree', name=name, parent_id=ID.TREE_QUEUE)  
 
         else:
             self.queue[index]['waited'] = 0
@@ -156,5 +162,7 @@ class Scheduler(Thread):
                 self.queue[i]['url'] = inData['url']
                 self.queue[i]['priority'] = inData['priority']
                 self.queue[i]['quality'] = inData['quality']
+
+                CallAfter(pub.sendMessage, topicName='edit-in-tree', oldName=oldName, newName=inData['name'])  
                 return
 

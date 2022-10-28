@@ -24,7 +24,6 @@ class MainFrame(wx.Frame):
         self.status_bar = self.CreateStatusBar()
 
         self.verion = 0.1
-        self.shouldScrollDown = True
         self.version = 0.1
         self.appData = {}
         self.scheduler = []
@@ -55,10 +54,12 @@ class MainFrame(wx.Frame):
         pub.subscribe(self.Log, 'log')
         pub.subscribe(self.LogStreamEnded, 'log-stream-ended')
 
+        pub.subscribe(self.AddToTree, 'add-to-tree')
+        pub.subscribe(self.EditInTree, 'edit-in-tree')
+        pub.subscribe(self.RemoveFromTree, 'remove-from-tree')
+
         self.Bind(wx.EVT_ICONIZE, self.OnMinimize)
         self.Bind(wx.EVT_CLOSE, self.OnClose)
-
-        self.taskBarIcon.CreatePopupMenu()
 
     def LoadJsonFile(self) -> None:
         ''' Loads the .json configuration file. '''
@@ -128,20 +129,20 @@ class MainFrame(wx.Frame):
         self.tree = wx.TreeCtrl(self.panel, -1)
         self.Bind(wx.EVT_TREE_ITEM_RIGHT_CLICK, self.OnTreeRightClick, self.tree)
 
-        root = self.tree.AddRoot('Streamers')
-        self.tree.AppendItem(root, 'Being downloaded')
-        queue = self.tree.AppendItem(root, 'On the queue')
-        self.tree.AppendItem(root, 'On the fridge')
-        self.tree.ExpandAll()
+        self.tree_root = self.tree.AddRoot('Streamers')
+        self.tree_downloading = self.tree.AppendItem(self.tree_root, 'Being downloaded')
+        self.tree_queue = self.tree.AppendItem(self.tree_root, 'On the queue')
+        self.tree_fridge = self.tree.AppendItem(self.tree_root, 'On the fridge')
 
         for streamer in self.appData['streamers_data']:
-            self.tree.AppendItem(queue, streamer['name'])
+            self.tree.AppendItem(self.tree_queue, streamer['name'])
+        self.tree.ExpandAll()
 
         upperSizer.Add(self.listCtrl, proportion=1, flag=wx.ALL | wx.EXPAND, border=5)
         upperSizer.Add(self.tree, proportion=1, flag=wx.ALL | wx.EXPAND, border=5)
 
         masterSizer.Add(upperSizer, proportion=2, flag=wx.ALL | wx.EXPAND, border=5)
-        masterSizer.Add(self.rt, proportion=1, flag=wx.ALL | wx.EXPAND, border=5)
+        masterSizer.Add(self.rt, proportion=1, flag=wx.LEFT | wx.RIGHT | wx.BOTTOM| wx.EXPAND, border=10)
 
         self.notification = Notify(
         default_notification_title = "Someone is online.",
@@ -156,7 +157,7 @@ class MainFrame(wx.Frame):
         self.menu = wx.MenuBar()
 
         file = wx.Menu()
-        self.scheduler_menu = wx.Menu()
+        scheduler_menu = wx.Menu()
         log = wx.Menu()
         help = wx.Menu()
 
@@ -167,9 +168,9 @@ class MainFrame(wx.Frame):
         file.AppendSeparator()
         self.exit = file.Append(-1, 'Exit', 'Exit the software')
 
-        start = self.scheduler_menu.Append(-1, 'Start', 'Start the scheduler.')
-        pause = self.scheduler_menu.Append(-1, 'Pause', 'Pause the scheduler. The ongoing downloads remains active.')
-        stop = self.scheduler_menu.Append(-1, 'Stop', 'Stop the scheduler and all ongoing downloads.')
+        start = scheduler_menu.Append(-1, 'Start', 'Start the scheduler.')
+        pause = scheduler_menu.Append(-1, 'Pause', 'Pause the scheduler. The ongoing downloads remains active.')
+        stop = scheduler_menu.Append(-1, 'Stop', 'Stop the scheduler and all ongoing downloads.')
         
         self.log_scroll = log.Append(ID.MENU_LOG_CHECKBOX, 'Keep scrolled down', 'Keep the log scrolled down with every new message.', kind=wx.ITEM_CHECK)
         log_clear = log.Append(-1, 'Clear log', 'Clear all the text in the log.')
@@ -189,15 +190,18 @@ class MainFrame(wx.Frame):
         self.Bind(wx.EVT_MENU, self.OnExit, self.exit)
 
         self.menu.Append(file, 'File')
-        self.menu.Append(self.scheduler_menu, 'Scheduler')
+        self.menu.Append(scheduler_menu, 'Scheduler')
         self.menu.Append(log, 'Log')
         self.menu.Append(help, 'Help')
 
         self.SetMenuBar(self.menu)
 
     def AddStreamer(self, streamer: dict):
+        """ Adds the streamer to the wx.ListCtrl. """
         
         self.listCtrl.Append([streamer['name'], '00:00:00', '1080p60', '0 B', '0 B/s'])
+        self.AddToTree(streamer['name'], ID.TREE_DOWNLOADING)
+
         if self.appData['send_notifications']:
             self.notification.message = f"The {streamer['name']}'s stream is online!"
             self.notification.send(block=False)
@@ -261,8 +265,6 @@ class MainFrame(wx.Frame):
         if not self.scheduler_thread.isActive:
             self.scheduler_thread.isActive = True
             self.scheduler_thread.ChooseOne()
-            
-            self.scheduler_menu.Enable(ID.SCHEDULER, True)
 
     def OnPause(self, event):
         ''' Stops the scheduler (the thread remains active). The ongoing downloads remains active. '''
@@ -303,7 +305,7 @@ class MainFrame(wx.Frame):
         for i in range (0, self.listCtrl.GetItemCount()):
             if self.listCtrl.GetItemText(i, 0) == name:
                 self.listCtrl.DeleteItem(i)
-                return
+                break
 
     def OnListCtrlModified(self, event):
         """ Called when an item is inserted or deleted from the wx.ListCtrl. """
@@ -327,17 +329,6 @@ class MainFrame(wx.Frame):
         """ Called when the user click on the clear log menu. """
 
         self.rt.Clear()
-
-    def OnMenuCheckNow(self, event):
-
-        name = event.GetEventObject().GetLabel(ID.MENU_CHECK)
-        print(f'{name} ta online?')
-    
-    def OnMenuStopNow(self, event):
-
-        name = event.GetEventObject().GetLabel(ID.MENU_STOP)
-
-        print('Fulana, para!')
 
     def OnAbout(self, event):
         """ Called when the user clicks on Help -> About. """
@@ -394,16 +385,70 @@ class MainFrame(wx.Frame):
         if parent:
             parent_text = self.tree.GetItemText(parent)
         else:
-            parent_text = 'root'
+            parent_text = 'self.tree_root'
 
         print(f'Double clicked on {self.tree.GetItemText(item)}, under {parent_text}')
 
         menu = wx.Menu()
         menu.Append( -1, 'aaaaaaaaa' )
 
-        self.PopupMenu( menu, event.GetPoint() )
+        self.PopupMenu(menu, wx.GetMousePosition())
 
+    def AddToTree(self, name: str, parent_id):
+        """ Add a node to the Tree. """
 
+        match parent_id:
+            case ID.TREE_DOWNLOADING:
+                self.tree.AppendItem(self.tree_downloading, name)
+
+            case ID.TREE_QUEUE:
+                self.tree.AppendItem(self.tree_queue, name)
+
+            case ID.TREE_FRIDGE:
+                self.tree.AppendItem(self.tree_fridge, name)
+
+        self.tree.Refresh()
+
+    def EditInTree(self, oldName: str, newName: str):
+        """ Edit a node in the Tree. """
+
+        self.tree.Refresh()
+
+    def RemoveFromTree(self, name: str, parent_id):
+        """ Removes a node from the tree by name. """
+
+        match parent_id:
+            case ID.TREE_DOWNLOADING:
+                parent_node = self.tree_downloading
+
+            case ID.TREE_QUEUE:
+                parent_node = self.tree_queue
+
+            case ID.TREE_FRIDGE:
+                parent_node = self.tree_fridge
+
+            case ID.TREE_ALL:
+                parent_node = self.tree_root
+
+        item = self.GetItemByName(name, parent_node)
+        if item.IsOk():
+            self.tree.Delete(item)
+            self.tree.Refresh()
+
+    def GetItemByName(self, name, root_item):
+        item, cookie = self.tree.GetFirstChild(root_item)
+
+        while item.IsOk():
+            text = self.tree.GetItemText(item)
+            if text.lower() == name.lower():
+                return item
+            if self.tree.ItemHasChildren(item):
+                match = self.GetItemByName(name, item)
+                if match.IsOk():
+                    return match
+            item, cookie = self.tree.GetNextChild(root_item, cookie)
+
+        return wx.TreeItemId()
 
 class TaskBarIcon(wx.adv.TaskBarIcon):
     def __init__(self, parent):

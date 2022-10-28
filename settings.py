@@ -5,6 +5,7 @@ from pubsub import pub
 import platform
 import webbrowser
 import streamlink
+from enums import ID
 
 class Settings(wx.Dialog):
     def __init__(self, parent, appData: list):
@@ -218,7 +219,7 @@ class Settings(wx.Dialog):
         self.listBox.SetSelection(wx.NOT_FOUND)
 
     def OnRemove(self, event):
-        ''' Removes a stremaer from the file. '''
+        ''' Removes a streamer from the file. '''
 
         index = self.listBox.GetSelection()
         if index == wx.NOT_FOUND:
@@ -236,6 +237,8 @@ class Settings(wx.Dialog):
             pub.sendMessage('save-file')
             pub.sendMessage('remove-from-thread', name=name)
             pub.sendMessage('remove-from-queue', name=name)
+            wx.CallAfter(pub.sendMessage, topicName='remove-from-tree', name=name, parent_id=ID.TREE_ALL)
+
             self.OnListBox(None)
 
     def OnCreate(self, event):
@@ -251,12 +254,10 @@ class Settings(wx.Dialog):
                 'Streamer already exists', wx.ICON_ERROR)
                 return
         
-        data['ID'] = self.appData['ID_count']
         data['wait_until'] = ''
-
-        self.appData['ID_count'] += 1
         self.appData['streamers_data'].append(data)
         pub.sendMessage('add-to-queue', streamer=data)
+        wx.CallAfter(pub.sendMessage, topicName='add-to-tree', name=data['name'], parent_id=ID.TREE_QUEUE)
 
         pub.sendMessage('save-file')
         self.listBox.Append(data['name'])

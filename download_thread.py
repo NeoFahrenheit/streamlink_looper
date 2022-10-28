@@ -8,6 +8,7 @@ import json
 from threading import Thread
 import stopwatch
 import utilities as util
+from enums import ID
 
 class Download(Thread):
     def __init__(self, parent, streamer: dict, dir: str, session):
