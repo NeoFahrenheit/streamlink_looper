@@ -19,7 +19,7 @@ class MainFrame(wx.Frame):
         self.STATUS_OFF_COLOR = '#cc3535'
 
         self.SetTitle('Streamlink Lopper')
-        self.SetSize(1000, 400)
+        self.SetSize(1000, 600)
         self.SetIcon(wx.Icon('media/icon_24.png'))
         self.status_bar = self.CreateStatusBar()
 
@@ -30,7 +30,7 @@ class MainFrame(wx.Frame):
         self.scheduler = []
         
         self.home_path = os.path.expanduser('~')
-        self.default_download_path = f"{self.home_path}\\Videos\\Streamlink Looper"
+        self.default_download_path = f"{self.home_path}/Videos/Streamlink Looper"
         self.Bind(wx.EVT_ICONIZE, self.OnClose)
 
         self.timer = wx.Timer(self)
@@ -64,7 +64,7 @@ class MainFrame(wx.Frame):
         ''' Loads the .json configuration file. '''
 
         if not os.path.isfile(f'{self.home_path}/.streamlink_looper.json'):
-            proc = subprocess.run('streamlink --version', stdout=subprocess.PIPE, text=True)
+            proc = subprocess.run(['streamlink', '--version'], stdout=subprocess.PIPE, text=True)
             streamlink_version = proc.stdout.split()[1]
 
             self.appData['app_version'] = self.version
@@ -76,7 +76,6 @@ class MainFrame(wx.Frame):
             self.appData['tray_on_closed'] = False
             self.appData['send_notifications'] = True
             self.appData['log_scroll_down'] = True
-            self.appData['ID_count'] = 2000
 
             self.appData['streamers_data'] = []
 
@@ -104,8 +103,8 @@ class MainFrame(wx.Frame):
         self.InitMenu()
 
         self.panel = wx.Panel(self)
-        master = wx.BoxSizer(wx.HORIZONTAL)
-        self.scrolledSizer = wx.BoxSizer(wx.VERTICAL)
+        masterSizer = wx.BoxSizer(wx.VERTICAL)
+        upperSizer = wx.BoxSizer(wx.HORIZONTAL)
 
         self.listCtrl = wx.ListCtrl(self.panel, -1, style=wx.LC_REPORT)
         self.listCtrl.Bind(wx.EVT_LIST_INSERT_ITEM, self.OnListCtrlModified)
@@ -126,8 +125,23 @@ class MainFrame(wx.Frame):
         self.rt = rt.RichTextCtrl(self.panel, -1, style=wx.TE_READONLY)
         self.rt.GetCaret().Hide()
 
-        master.Add(self.listCtrl, proportion=1, flag=wx.ALL | wx.EXPAND, border=5)
-        master.Add(self.rt, proportion=1, flag=wx.ALL | wx.EXPAND, border=5)
+        self.tree = wx.TreeCtrl(self.panel, -1)
+        self.Bind(wx.EVT_TREE_ITEM_RIGHT_CLICK, self.OnTreeRightClick, self.tree)
+
+        root = self.tree.AddRoot('Streamers')
+        self.tree.AppendItem(root, 'Being downloaded')
+        queue = self.tree.AppendItem(root, 'On the queue')
+        self.tree.AppendItem(root, 'On the fridge')
+        self.tree.ExpandAll()
+
+        for streamer in self.appData['streamers_data']:
+            self.tree.AppendItem(queue, streamer['name'])
+
+        upperSizer.Add(self.listCtrl, proportion=1, flag=wx.ALL | wx.EXPAND, border=5)
+        upperSizer.Add(self.tree, proportion=1, flag=wx.ALL | wx.EXPAND, border=5)
+
+        masterSizer.Add(upperSizer, proportion=2, flag=wx.ALL | wx.EXPAND, border=5)
+        masterSizer.Add(self.rt, proportion=1, flag=wx.ALL | wx.EXPAND, border=5)
 
         self.notification = Notify(
         default_notification_title = "Someone is online.",
@@ -136,7 +150,7 @@ class MainFrame(wx.Frame):
         default_notification_audio = 'media/notification_sound.wav'
         )
 
-        self.panel.SetSizerAndFit(master)
+        self.panel.SetSizerAndFit(masterSizer)
 
     def InitMenu(self):
         self.menu = wx.MenuBar()
@@ -156,24 +170,6 @@ class MainFrame(wx.Frame):
         start = self.scheduler_menu.Append(-1, 'Start', 'Start the scheduler.')
         pause = self.scheduler_menu.Append(-1, 'Pause', 'Pause the scheduler. The ongoing downloads remains active.')
         stop = self.scheduler_menu.Append(-1, 'Stop', 'Stop the scheduler and all ongoing downloads.')
-
-        wait_time = wx.Menu()
-        wait_time.Append(ID.PUT_BACK, 'and put back in the queue')
-        wait_time.Append(ID.WAIT_8, "and don't check for 8 hours")
-        wait_time.Append(ID.WAIT_16, "and don't check for 16 hours")
-        wait_time.Append(ID.WAIT_24, "and don't check for 24 hours")
-
-        users = [name['name'] for name in self.appData['streamers_data']]
-        for name in users:
-            check = self.checkSubmenu.Append(ID.MENU_CHECK, name, helpString=f"Check if {name} is online now.", )
-            self.Bind(wx.EVT_MENU, self.OnMenuCheckNow, check)
-
-            stop = self.stop_download.Append(ID.MENU_STOP, name, subMenu=wait_time)
-            self.Bind(wx.EVT_MENU, self.OnMenuStopNow, stop)
-
-        self.scheduler_menu.Append(ID.SCHEDULER, 'Check now...', self.checkSubmenu)
-        self.scheduler_menu.Append(ID.SCHEDULER, 'Stop download from...', self.stop_download)
-        #self.scheduler_menu.Enable(ID.SCHEDULER, False)
         
         self.log_scroll = log.Append(ID.MENU_LOG_CHECKBOX, 'Keep scrolled down', 'Keep the log scrolled down with every new message.', kind=wx.ITEM_CHECK)
         log_clear = log.Append(-1, 'Clear log', 'Clear all the text in the log.')
@@ -390,6 +386,23 @@ class MainFrame(wx.Frame):
         self.taskBarIcon.Destroy()
         self.Destroy()
 
+    def OnTreeRightClick(self, event):
+        """ Called when an item on the tree is right clicked. Pops a context menu. """
+
+        item = event.GetItem()
+        parent = self.tree.GetItemParent(item)
+        if parent:
+            parent_text = self.tree.GetItemText(parent)
+        else:
+            parent_text = 'root'
+
+        print(f'Double clicked on {self.tree.GetItemText(item)}, under {parent_text}')
+
+        menu = wx.Menu()
+        menu.Append( -1, 'aaaaaaaaa' )
+
+        self.PopupMenu( menu, event.GetPoint() )
+
 
 
 class TaskBarIcon(wx.adv.TaskBarIcon):
@@ -401,5 +414,5 @@ class TaskBarIcon(wx.adv.TaskBarIcon):
 
         self.Bind(wx.adv.EVT_TASKBAR_LEFT_DOWN, parent.OnShowFrame)
 
-    def CreatePopupMenu(self):
-        return self.parent.scheduler_menu
+    # def CreatePopupMenu(self):
+    #     return self.parent.scheduler_menu
