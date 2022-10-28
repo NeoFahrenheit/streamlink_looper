@@ -3,7 +3,7 @@ from wx import CallAfter
 from threading import Thread
 import download_thread as dt
 from pubsub import pub
-from datetime import datetime
+from datetime import datetime, timedelta
 from enums import ID
 
 class Scheduler(Thread):
@@ -21,7 +21,6 @@ class Scheduler(Thread):
         self.dir = appData['download_dir']
 
         self.PrepareData(appData)
-        self.start()
 
     def run(self):
         ''' Starts this thread's activity. '''
@@ -45,6 +44,7 @@ class Scheduler(Thread):
             dic['name'] = data['name']
             dic['quality'] = data['quality']
             dic['priority'] =  data['priority']
+            dic['wait_until'] =  data['wait_until']
             dic['waited'] = 0
 
             self.queue.append(dic)
@@ -63,6 +63,7 @@ class Scheduler(Thread):
             limit = self.wait_time * 3 * streamer['priority']
             wait_line.append(waited - limit)
 
+        print(wait_line)
         # Now we need the one who waited more.
         waited_most = -999
         index = -1
@@ -70,7 +71,7 @@ class Scheduler(Thread):
             if wait_line[i] > waited_most:
                 index = i
                 waited_most = wait_line[i]
-        
+
         is_live = self.CheckStreamer(self.queue[index])
         # We need to be careful. When we removed from the queue, our index
         # is no longer valid. It should be done last.
@@ -128,6 +129,7 @@ class Scheduler(Thread):
         d['name'] = streamer['name']
         d['quality'] = streamer['quality']
         d['priority'] = streamer['priority']
+        d['wait_until'] = streamer['wait_until']
         d['waited'] = 0
 
         self.queue.append(d)
@@ -138,7 +140,18 @@ class Scheduler(Thread):
 
         self.sec += 1
         for data in self.queue:
-            data['waited'] += 1
+            # Streamers on the fridge don't get their count increased.
+            if data['wait_until']:
+                now = datetime.now()
+                until = datetime.strptime(data['wait_until'], "%Y-%m-%d %H:%M:%S")
+
+                if now >= until:
+                    data['wait_until'] = ''
+                    pub.sendMessage('update-wait-until', name=data['wait_until'], date_time=None)
+                    data['waited'] += 1
+            
+            else:
+                data['waited'] += 1
 
         if self.sec == self.wait_time:
             self.sec = 0

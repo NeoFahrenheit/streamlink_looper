@@ -111,7 +111,6 @@ class Download(Thread):
 
         self.isActive = False
 
-
     def ChooseQuality(self, quality: str, q_list: list) -> str:
         ''' Given a `quality`, chooses the apropriate quality available in `q_list`.
         Returns the exact quality chosen. '''

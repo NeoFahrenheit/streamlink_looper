@@ -5,6 +5,7 @@ import wx.adv
 import subprocess
 from pubsub import pub
 import json
+from datetime import datetime, timedelta
 from notifypy import Notify
 from scheduler import Scheduler
 import settings
@@ -26,10 +27,10 @@ class MainFrame(wx.Frame):
         self.verion = 0.1
         self.version = 0.1
         self.appData = {}
-        self.scheduler = []
-        
+
         self.home_path = os.path.expanduser('~')
         self.default_download_path = f"{self.home_path}/Videos/Streamlink Looper"
+        self.nameOnPopup = ''
         self.Bind(wx.EVT_ICONIZE, self.OnClose)
 
         self.timer = wx.Timer(self)
@@ -49,6 +50,7 @@ class MainFrame(wx.Frame):
         self.menu.Check(ID.MENU_LOG_CHECKBOX, self.appData['log_scroll_down'])
         
         pub.subscribe(self.UpdateDownloadInfo, 'update-download-info')
+        pub.subscribe(self.UpdateWaitUntilOnFile, 'update-wait-until')
         pub.subscribe(self.DeleteRow, 'delete-panel')
         pub.subscribe(self.SaveFile, 'save-file')
         pub.subscribe(self.Log, 'log')
@@ -134,8 +136,7 @@ class MainFrame(wx.Frame):
         self.tree_queue = self.tree.AppendItem(self.tree_root, 'On the queue')
         self.tree_fridge = self.tree.AppendItem(self.tree_root, 'On the fridge')
 
-        for streamer in self.appData['streamers_data']:
-            self.tree.AppendItem(self.tree_queue, streamer['name'])
+        self.AppendsItemsOnTreeAtStart()
         self.tree.ExpandAll()
 
         upperSizer.Add(self.listCtrl, proportion=1, flag=wx.ALL | wx.EXPAND, border=5)
@@ -195,6 +196,30 @@ class MainFrame(wx.Frame):
         self.menu.Append(help, 'Help')
 
         self.SetMenuBar(self.menu)
+
+    def AppendsItemsOnTreeAtStart(self):
+        """ Appends items on the Tree on app start. """
+
+        isAppDataChanged = False
+
+        for i in range (0, len(self.appData['streamers_data'])):
+            name = self.appData['streamers_data'][i]['name']
+
+            if self.appData['streamers_data'][i]['wait_until']:
+                now = datetime.now()
+                until = datetime.strptime(self.appData['streamers_data'][i]['wait_until'], "%Y-%m-%d %H:%M:%S")
+
+                if now < until:
+                    self.tree.AppendItem(self.tree_fridge, name)
+                else:
+                    self.appData['streamers_data'][i]['wait_until'] = ''
+                    isAppDataChanged = True
+
+            else:
+                self.tree.AppendItem(self.tree_queue, name)
+
+        if isAppDataChanged:
+            self.SaveFile()
 
     def AddStreamer(self, streamer: dict):
         """ Adds the streamer to the wx.ListCtrl. """
@@ -264,6 +289,7 @@ class MainFrame(wx.Frame):
 
         if not self.scheduler_thread.isActive:
             self.scheduler_thread.isActive = True
+            self.scheduler_thread.start()
             self.scheduler_thread.ChooseOne()
 
     def OnPause(self, event):
@@ -381,16 +407,30 @@ class MainFrame(wx.Frame):
         """ Called when an item on the tree is right clicked. Pops a context menu. """
 
         item = event.GetItem()
+        clickedOn = self.tree.GetItemText(item)
+
         parent = self.tree.GetItemParent(item)
         if parent:
             parent_text = self.tree.GetItemText(parent)
         else:
-            parent_text = 'self.tree_root'
+            return
 
-        print(f'Double clicked on {self.tree.GetItemText(item)}, under {parent_text}')
+        #print(f'Double clicked on {clickedOn}, under {parent_text}')
+        self.nameOnPopup = clickedOn
+        self.parent_tree = parent_text
 
         menu = wx.Menu()
-        menu.Append( -1, 'aaaaaaaaa' )
+        match parent_text:
+            case 'Being downloaded':
+                put_back = menu.Append(ID.PUT_BACK, f"Stop and put back in the queue")
+                wait_8 = menu.Append(ID.WAIT_8, f"Stop and don't check for 8 hours")
+                wait_16 = menu.Append(ID.WAIT_16, f"Stop and don't check for 16 hours")
+                wait_24 = menu.Append(ID.WAIT_24, f"Stop and don't check for 24 hours")
+
+                self.Bind(wx.EVT_MENU, self.OnPopupMenu, put_back)
+                self.Bind(wx.EVT_MENU, self.OnPopupMenu, wait_8)
+                self.Bind(wx.EVT_MENU, self.OnPopupMenu, wait_16)
+                self.Bind(wx.EVT_MENU, self.OnPopupMenu, wait_24)
 
         self.PopupMenu(menu, wx.GetMousePosition())
 
@@ -449,6 +489,46 @@ class MainFrame(wx.Frame):
             item, cookie = self.tree.GetNextChild(root_item, cookie)
 
         return wx.TreeItemId()
+
+    def UpdateWaitUntilOnFile(self, name: str, date_time: str = None):
+        """ Updates a streamer's ['wait_until'] key on file. """
+
+        for i in range(0, len(self.appData['streamers_data'])):
+            if self.appData['streamers_data'][i]['name'] == name:
+                if date_time:
+                    self.appData['streamers_data'][i]['wait_until'] = date_time
+                else:
+                    self.appData['streamers_data'][i]['wait_until'] = ''
+                
+                self.SaveFile()
+                return
+
+    def OnPopupMenu(self, event):
+        """ Called when the user clicks on something on the PopupMenu. """
+
+        id = event.GetId()
+
+        match self.parent_tree:
+            case 'Being downloaded':
+                if id == ID.PUT_BACK:
+                    self.scheduler_thread.RemoveFromThread(self.nameOnPopup)
+                    self.RemoveFromTree(self.nameOnPopup, ID.TREE_DOWNLOADING)
+                    self.tree.AppendItem(self.tree_queue, self.nameOnPopup)
+
+                elif id == ID.WAIT_8:
+                    print('removing from 8 hours...')
+                    self.scheduler_thread.RemoveFromThread(self.nameOnPopup)
+                    self.RemoveFromTree(self.nameOnPopup, ID.TREE_DOWNLOADING)
+                    self.tree.AppendItem(self.tree_queue, self.nameOnPopup)
+                    
+                    until = datetime.now() + timedelta(hours=8)
+                    until_str = datetime.strftime(until, "%Y-%m-%d %H:%M:%S")
+                    self.UpdateWaitUntilOnFile(self.nameOnPopup, until_str)
+
+                elif id == ID.WAIT_16:
+                    ...
+                elif id == ID.WAIT_24:
+                    ...
 
 class TaskBarIcon(wx.adv.TaskBarIcon):
     def __init__(self, parent):

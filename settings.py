@@ -297,6 +297,7 @@ class Settings(wx.Dialog):
         self.appData['streamers_data'][index]['name'] = inData['name']
         self.appData['streamers_data'][index]['quality'] = inData['quality']
         self.appData['streamers_data'][index]['priority'] = inData['priority']
+        self.appData['streamers_data'][index]['wait_until'] = inData['wait_until']
         
         pub.sendMessage('save-file')
         pub.sendMessage('scheduler-edit', oldName=oldName, inData=inData)
