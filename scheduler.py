@@ -3,7 +3,7 @@ from wx import CallAfter
 from threading import Thread
 import download_thread as dt
 from pubsub import pub
-from datetime import datetime, timedelta
+from datetime import datetime
 from enums import ID
 
 class Scheduler(Thread):
@@ -55,22 +55,25 @@ class Scheduler(Thread):
         if not self.queue:
             return
 
-        wait_line = []
-
         # We check first how the wait is for everybody.
-        for streamer in self.queue:
-            waited = streamer['waited']
-            limit = self.wait_time * 3 * streamer['priority']
-            wait_line.append(waited - limit)
+        for data in self.queue:
+            waited = data['waited']
+            limit = self.wait_time * 3 * data['priority']
+            data['waited'] = waited - limit
 
-        print(wait_line)
         # Now we need the one who waited more.
-        waited_most = -999
+        self.queue.sort(reverse=True, key=lambda x: x['waited'])
         index = -1
-        for i in range (0, len(wait_line)):
-            if wait_line[i] > waited_most:
+
+        for i in range(0, len(self.queue)):
+            if self.queue[i]['wait_until'] != '':
+                continue
+            else:
                 index = i
-                waited_most = wait_line[i]
+                break
+
+        if index < 0:
+            return
 
         is_live = self.CheckStreamer(self.queue[index])
         # We need to be careful. When we removed from the queue, our index
@@ -139,17 +142,17 @@ class Scheduler(Thread):
             return
 
         self.sec += 1
+        # Streamers on the fridge don't get their count increased.
+        
         for data in self.queue:
-            # Streamers on the fridge don't get their count increased.
-            if data['wait_until']:
+            if data['wait_until'] != '':
                 now = datetime.now()
                 until = datetime.strptime(data['wait_until'], "%Y-%m-%d %H:%M:%S")
 
                 if now >= until:
                     data['wait_until'] = ''
                     pub.sendMessage('update-wait-until', name=data['wait_until'], date_time=None)
-                    data['waited'] += 1
-            
+
             else:
                 data['waited'] += 1
 

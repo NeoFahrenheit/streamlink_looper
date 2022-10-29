@@ -46,12 +46,15 @@ class Download(Thread):
 
         if 'audio' not in self.streamerQuality:
             # Changing the container of the stream to .mp4. This should be very fast.
-            ts = f"{self.dir}/{filename}.ts"
-            mp4 = f"{self.dir}/{filename}.mp4"
+            try:
+                ts = f"{self.dir}/{filename}.ts"
+                mp4 = f"{self.dir}/{filename}.mp4"
 
-            subprocess.call(["ffmpeg", "-y", "-i", ts, "-vcodec", "copy", "-acodec", "copy", "-map", "0:v", "-map", "0:a", mp4], 
-                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-            os.remove(ts)
+                subprocess.call(["ffmpeg", "-y", "-i", ts, "-vcodec", "copy", "-acodec", "copy", "-map", "0:v", "-map", "0:a", mp4], 
+                    stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                os.remove(ts)
+            except:
+                pass
             
             d = self.GetStreamerFromFile(self.name)
             pub.sendMessage('add-to-queue', streamer=d)

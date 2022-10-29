@@ -1,10 +1,6 @@
 import os
 import wx
-import wx.richtext as rt
 from pubsub import pub
-import platform
-import webbrowser
-import streamlink
 from enums import ID
 
 class Settings(wx.Dialog):
@@ -188,7 +184,6 @@ class Settings(wx.Dialog):
         data['priority'] = priority
 
         return data
-
 
     def OnListBox(self, event) -> None:
         ''' Call every time the users clicks on something in the wx.ListBox. '''

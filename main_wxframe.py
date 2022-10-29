@@ -432,6 +432,27 @@ class MainFrame(wx.Frame):
                 self.Bind(wx.EVT_MENU, self.OnPopupMenu, wait_16)
                 self.Bind(wx.EVT_MENU, self.OnPopupMenu, wait_24)
 
+            case 'On the queue':
+                check_now = menu.Append(ID.CHECK_NOW, f"Check now")
+                wait_8 = menu.Append(ID.WAIT_8, f"Don't check for 8 hours")
+                wait_16 = menu.Append(ID.WAIT_16, f"Don't check for 16 hours")
+                wait_24 = menu.Append(ID.WAIT_24, f"Don't check for 24 hours")
+
+                self.Bind(wx.EVT_MENU, self.OnPopupMenu, check_now)
+                self.Bind(wx.EVT_MENU, self.OnPopupMenu, wait_8)
+                self.Bind(wx.EVT_MENU, self.OnPopupMenu, wait_16)
+                self.Bind(wx.EVT_MENU, self.OnPopupMenu, wait_24)
+
+            case 'On the fridge':
+                remove = menu.Append(ID.REMOVE_FROM_FRIDGE, f"Remove from fridge")
+                remove_and_check = menu.Append(ID.REMOVE_FROM_FRIDGE_CHECK, f"Remove from fridge and check now")
+
+                self.Bind(wx.EVT_MENU, self.OnPopupMenu, remove)
+                self.Bind(wx.EVT_MENU, self.OnPopupMenu, remove_and_check)
+
+            case _:
+                return
+
         self.PopupMenu(menu, wx.GetMousePosition())
 
     def AddToTree(self, name: str, parent_id):
@@ -510,25 +531,39 @@ class MainFrame(wx.Frame):
 
         match self.parent_tree:
             case 'Being downloaded':
+                self.scheduler_thread.RemoveFromThread(self.nameOnPopup)
+                self.RemoveFromTree(self.nameOnPopup, ID.TREE_DOWNLOADING)
+
                 if id == ID.PUT_BACK:
-                    self.scheduler_thread.RemoveFromThread(self.nameOnPopup)
-                    self.RemoveFromTree(self.nameOnPopup, ID.TREE_DOWNLOADING)
                     self.tree.AppendItem(self.tree_queue, self.nameOnPopup)
 
                 elif id == ID.WAIT_8:
-                    print('removing from 8 hours...')
-                    self.scheduler_thread.RemoveFromThread(self.nameOnPopup)
-                    self.RemoveFromTree(self.nameOnPopup, ID.TREE_DOWNLOADING)
-                    self.tree.AppendItem(self.tree_queue, self.nameOnPopup)
+                    self.tree.AppendItem(self.tree_fridge, self.nameOnPopup)
                     
                     until = datetime.now() + timedelta(hours=8)
                     until_str = datetime.strftime(until, "%Y-%m-%d %H:%M:%S")
                     self.UpdateWaitUntilOnFile(self.nameOnPopup, until_str)
 
                 elif id == ID.WAIT_16:
-                    ...
+                    self.tree.AppendItem(self.tree_fridge, self.nameOnPopup)
+                    
+                    until = datetime.now() + timedelta(hours=16)
+                    until_str = datetime.strftime(until, "%Y-%m-%d %H:%M:%S")
+                    self.UpdateWaitUntilOnFile(self.nameOnPopup, until_str)
+
                 elif id == ID.WAIT_24:
+                    self.tree.AppendItem(self.tree_fridge, self.nameOnPopup)
+                    
+                    until = datetime.now() + timedelta(hours=24)
+                    until_str = datetime.strftime(until, "%Y-%m-%d %H:%M:%S")
+                    self.UpdateWaitUntilOnFile(self.nameOnPopup, until_str)
+
+            case 'On the queue':
+                if id == ID.CHECK_NOW:
                     ...
+
+            case 'On the fridge':
+                ...
 
 class TaskBarIcon(wx.adv.TaskBarIcon):
     def __init__(self, parent):
