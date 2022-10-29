@@ -1,6 +1,7 @@
 import os
 import wx
 from pubsub import pub
+from urllib.parse import urlparse
 from enums import ID
 
 class Settings(wx.Dialog):
@@ -10,6 +11,7 @@ class Settings(wx.Dialog):
         self.SetTitle('Settings')
         self.appData = appData
 
+        self.GetDomainList()
         self.InitUI()
         self.LoadData()
 
@@ -124,8 +126,12 @@ class Settings(wx.Dialog):
 
         waitSizer = wx.BoxSizer(wx.HORIZONTAL)
         self.waitCtrl = wx.SpinCtrl(panel, -1, size=(60, 23), min=5, max=120, initial=15)
+        self.domainList = ['a', 'b']
+        self.domainCombo = wx.ComboBox(panel, -1, self.domainList[0], choices=self.domainList, size=(180, 23))
         waitSizer.Add(wx.StaticText(panel, -1, 'Wait time :', size=((60, 23))), flag=wx.TOP, border=3)
-        waitSizer.Add(self.waitCtrl, flag=wx.LEFT, border=15)
+        waitSizer.Add(self.waitCtrl, flag=wx.LEFT | wx.RIGHT, border=15)
+        waitSizer.Add(wx.StaticText(panel, -1, 'for'), flag=wx.TOP, border=3)
+        waitSizer.Add(self.domainCombo, flag=wx.LEFT, border=15)
 
         startSizer = wx.BoxSizer(wx.HORIZONTAL)
         self.startCheckBox = wx.CheckBox(panel, -1)
@@ -168,6 +174,14 @@ class Settings(wx.Dialog):
 
         panel.SetSizer(sizer)
         return panel
+
+    def GetDomainList(self):
+        """ Gets all domains on streams URL present in the file. """
+
+        domains = {}
+        for streamer in self.appData['streamers_data']:
+            ...
+
 
     def GetFieldsData(self) -> dict:
         ''' Returns the data on the fields through a dictionary. '''
@@ -250,6 +264,8 @@ class Settings(wx.Dialog):
                 return
         
         data['wait_until'] = ''
+        data['waited'] = 0
+
         self.appData['streamers_data'].append(data)
         pub.sendMessage('add-to-queue', streamer=data)
         wx.CallAfter(pub.sendMessage, topicName='add-to-tree', name=data['name'], parent_id=ID.TREE_QUEUE)

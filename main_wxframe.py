@@ -10,6 +10,7 @@ from notifypy import Notify
 from scheduler import Scheduler
 import settings
 import about
+from utilities import dummy_event
 from enums import ID
 
 class MainFrame(wx.Frame):
@@ -290,7 +291,6 @@ class MainFrame(wx.Frame):
         if not self.scheduler_thread.isActive:
             self.scheduler_thread.isActive = True
             self.scheduler_thread.start()
-            self.scheduler_thread.ChooseOne()
 
     def OnPause(self, event):
         ''' Stops the scheduler (the thread remains active). The ongoing downloads remains active. '''
@@ -453,7 +453,9 @@ class MainFrame(wx.Frame):
             case _:
                 return
 
-        self.PopupMenu(menu, wx.GetMousePosition())
+        scr = wx.GetMousePosition()
+        rel = self.ScreenToClient(scr)
+        self.PopupMenu(menu, rel)
 
     def AddToTree(self, name: str, parent_id):
         """ Add a node to the Tree. """
@@ -530,40 +532,86 @@ class MainFrame(wx.Frame):
         id = event.GetId()
 
         match self.parent_tree:
-            case 'Being downloaded':
-                self.scheduler_thread.RemoveFromThread(self.nameOnPopup)
-                self.RemoveFromTree(self.nameOnPopup, ID.TREE_DOWNLOADING)
 
+            case 'Being downloaded':
                 if id == ID.PUT_BACK:
+                    self.scheduler_thread.RemoveFromThread(self.nameOnPopup)
+                    self.RemoveFromTree(self.nameOnPopup, ID.TREE_DOWNLOADING)
                     self.tree.AppendItem(self.tree_queue, self.nameOnPopup)
 
                 elif id == ID.WAIT_8:
                     self.tree.AppendItem(self.tree_fridge, self.nameOnPopup)
-                    
-                    until = datetime.now() + timedelta(hours=8)
-                    until_str = datetime.strftime(until, "%Y-%m-%d %H:%M:%S")
-                    self.UpdateWaitUntilOnFile(self.nameOnPopup, until_str)
+                    self.ProcessFridgeTime(id)
 
                 elif id == ID.WAIT_16:
                     self.tree.AppendItem(self.tree_fridge, self.nameOnPopup)
-                    
-                    until = datetime.now() + timedelta(hours=16)
-                    until_str = datetime.strftime(until, "%Y-%m-%d %H:%M:%S")
-                    self.UpdateWaitUntilOnFile(self.nameOnPopup, until_str)
+                    self.ProcessFridgeTime(id)
 
                 elif id == ID.WAIT_24:
                     self.tree.AppendItem(self.tree_fridge, self.nameOnPopup)
+                    self.ProcessFridgeTime(id)
                     
-                    until = datetime.now() + timedelta(hours=24)
-                    until_str = datetime.strftime(until, "%Y-%m-%d %H:%M:%S")
-                    self.UpdateWaitUntilOnFile(self.nameOnPopup, until_str)
 
             case 'On the queue':
                 if id == ID.CHECK_NOW:
-                    ...
+                    streamer = self.scheduler_thread.GetStreamerByName(self.nameOnPopup)
+                    self._CheckStreamerNow(streamer)
+
+                else:
+                    self.RemoveFromTree(self.nameOnPopup, ID.TREE_QUEUE)
+                    self.tree.AppendItem(self.tree_fridge, self.nameOnPopup)
+                    self.ProcessFridgeTime(id)
 
             case 'On the fridge':
-                ...
+                
+                self.RemoveFromTree(self.nameOnPopup, ID.TREE_FRIDGE)
+                self.tree.AppendItem(self.tree_queue, self.nameOnPopup)
+
+                if id == ID.REMOVE_FROM_FRIDGE:
+                    self.scheduler_thread.TransferFromFridgeToQueue(self.nameOnPopup)
+
+                elif id == ID.REMOVE_FROM_FRIDGE_CHECK:
+                    streamer = self.scheduler_thread.GetStreamerByName(self.nameOnPopup)
+                    self._CheckStreamerNow(streamer)
+                    
+
+    def _CheckStreamerNow(self, streamer: dict):
+        """ Check if's a streamer is online now. Meant to be called only in the MainFrame. 
+        It does everything else. """
+
+        now = datetime.now()
+        status = self.scheduler_thread.CheckStreamer(streamer)
+        name = streamer['name']
+
+        if status:
+            self.AddStreamer(streamer)
+
+            self.scheduler_thread.RemoveFromQueue(name)
+            self.RemoveFromTree(name, parent_id=ID.TREE_QUEUE)  
+            self.RemoveFromTree(name, parent_id=ID.TREE_FRIDGE)
+
+        time = now.strftime("%H:%M:%S")
+        self.Log(name, time, status)
+
+    def ProcessFridgeTime(self, id: ID):
+        """ Process the time a streamer will be on the fridge. It also removes the
+        streamer from the scheduler thread and saves the file. """
+
+        self.scheduler_thread.RemoveFromThread(self.nameOnPopup)
+        self.RemoveFromTree(self.nameOnPopup, ID.TREE_DOWNLOADING)
+
+        wait = 0
+        match id:
+            case ID.WAIT_8:
+                wait = 8
+            case ID.WAIT_16:
+                wait = 16
+            case ID.WAIT_24:
+                wait = 24
+
+        until = datetime.now() + timedelta(hours=wait)
+        until_str = datetime.strftime(until, "%Y-%m-%d %H:%M:%S")
+        self.UpdateWaitUntilOnFile(self.nameOnPopup, until_str)
 
 class TaskBarIcon(wx.adv.TaskBarIcon):
     def __init__(self, parent):

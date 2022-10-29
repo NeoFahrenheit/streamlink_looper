@@ -13,6 +13,7 @@ class Scheduler(Thread):
         self.session = streamlink.Streamlink()
         self.isActive = False
         self.parent = parent
+        self.appData = appData
 
         self.threads = []
         self.queue = []
@@ -22,14 +23,16 @@ class Scheduler(Thread):
 
         self.PrepareData(appData)
 
-    def run(self):
-        ''' Starts this thread's activity. '''
-
         pub.subscribe(self.OnTimer, 'ping-timer')
         pub.subscribe(self.AddToQueue, 'add-to-queue')
         pub.subscribe(self.RemoveFromQueue, 'remove-from-queue')
         pub.subscribe(self.OnEdit, 'scheduler-edit')
         pub.subscribe(self.RemoveFromThread, 'remove-from-thread')
+
+    def run(self):
+        ''' Starts this thread's activity. '''
+
+        self.ChooseOne()
 
     def PrepareData(self, data: dict):
         ''' Prepares the data for the scheduler. Everybody gets their wait time. 
@@ -105,6 +108,13 @@ class Scheduler(Thread):
             del t
             return False
 
+    def GetStreamerByName(self, name: str) -> dict | None:
+        """ Returns a streamer dictionary. """
+
+        for streamer in self.queue:
+            if streamer['name'] == name:
+                return streamer
+
     def RemoveFromThread(self, name: str) -> bool:
         ''' `pubsub('remove-from-thread')` -> Removes the thread named with corresponding `name` from the self.threads. '''
 
@@ -127,15 +137,7 @@ class Scheduler(Thread):
     def AddToQueue(self, streamer: dict):
         ''' Adds a stream to the queue. '''
 
-        d = {}
-        d['url'] = streamer['url']
-        d['name'] = streamer['name']
-        d['quality'] = streamer['quality']
-        d['priority'] = streamer['priority']
-        d['wait_until'] = streamer['wait_until']
-        d['waited'] = 0
-
-        self.queue.append(d)
+        self.queue.append(streamer)
 
     def OnTimer(self):
         if not self.isActive:
@@ -182,3 +184,14 @@ class Scheduler(Thread):
                 CallAfter(pub.sendMessage, topicName='edit-in-tree', oldName=oldName, newName=inData['name'])  
                 return
 
+    def TransferFromFridgeToQueue(self, name: str):
+        """ Gives a empty string value to the 'wait_until' key on the queue and the file. """
+
+        for i in range(0, len(self.queue)):
+            if self.queue[i]['name'] == name:
+                self.queue[i]['wait_until'] = ''
+
+        for i in range(0, len(self.appData['streamers_data'])):
+            if self.appData['streamers_data'][i]['name'] == name:
+                self.appData['streamers_data'][i]['wait_until'] = ''
+                pub.sendMessage('save-file')

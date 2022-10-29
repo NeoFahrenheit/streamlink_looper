@@ -1,3 +1,10 @@
+class dummy_event:
+    def __init__(self, id):
+        self.id = id
+
+    def GetId(self):
+        return self.id
+
 def get_unit(size: float) -> str:
     unit = ''
     if size < 1024:
@@ -34,3 +41,4 @@ def get_progress_text(dl_total: float, dl_temp: float, time_diff: float) -> tupl
 
     t = (f"{downloaded:.2f} {unit_downloaded}", f"{speed:.2f} {speed_unit}/s")
     return t
+    
