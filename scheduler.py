@@ -18,7 +18,6 @@ class Scheduler(Thread):
         self.threads = []
         self.queue = []
         self.sec = 0
-        self.wait_time = appData['wait_time']
         self.dir = appData['download_dir']
 
         self.PrepareData(appData)
@@ -61,7 +60,7 @@ class Scheduler(Thread):
         # We check first how the wait is for everybody.
         for data in self.queue:
             waited = data['waited']
-            limit = self.wait_time * 3 * data['priority']
+            limit = 5 * 3 * data['priority'] # <-- wait_time here (5)
             data['waited'] = waited - limit
 
         # Now we need the one who waited more.
@@ -158,7 +157,7 @@ class Scheduler(Thread):
             else:
                 data['waited'] += 1
 
-        if self.sec == self.wait_time:
+        if self.sec == 5: # <-- wait_time here.
             self.sec = 0
             self.ChooseOne()
 

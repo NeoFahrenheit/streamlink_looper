@@ -1,4 +1,5 @@
 import os
+from sys import platform
 import wx
 from pubsub import pub
 from urllib.parse import urlparse
@@ -10,15 +11,16 @@ class Settings(wx.Dialog):
 
         self.SetTitle('Settings')
         self.appData = appData
+        self.domains_dict  = {}
+        self.isDomainModified = False
 
-        self.GetDomainList()
         self.InitUI()
+        self.GetDomainList()
         self.LoadData()
 
         self.CenterOnParent()
-
         self.Bind(wx.EVT_CLOSE, self.OnClose)
-
+        
     def InitUI(self) -> None:
         sizer = wx.BoxSizer(wx.VERTICAL)
         self.notebook = wx.Notebook(self, -1)
@@ -43,7 +45,6 @@ class Settings(wx.Dialog):
             self.listBox.SetSelection(0)
             self.OnListBox(None)
         
-        self.waitCtrl.SetValue(self.appData['wait_time'])
         self.startCheckBox.SetValue(self.appData['start_on_scheduler'])
         self.trayMinimizeCheckBox.SetValue(self.appData['tray_on_minimized'])
         self.trayCloseCheckBox.SetValue(self.appData['tray_on_closed'])
@@ -61,7 +62,19 @@ class Settings(wx.Dialog):
         masterSizer.Add(listSizer, flag=wx.ALL, border=10)
         masterSizer.Add(detailsSizer, flag=wx.ALL, border=10)
 
-        textSize = (75, 23)
+        if platform != 'win32': 
+            spinSize = (110, 32)
+            comboSize = (150, 32)
+            textSize = (75, 23)
+            textCtrlSize = (300, 32)
+            spacing = 6
+        else:
+            spinSize = (60, 23)
+            comboSize = (100, 23)
+            textSize = (75, 23)
+            textCtrlSize = (250, 23)
+            spacing = 3
+
         removeBtn = wx.Button(panel, -1, 'Remove')
         createBtn = wx.Button(panel, -1, 'Create')
         editBtn = wx.Button(panel, -1, 'Edit')
@@ -72,28 +85,28 @@ class Settings(wx.Dialog):
         createBtn.Bind(wx.EVT_BUTTON, self.OnCreate)
         editBtn.Bind(wx.EVT_BUTTON, self.OnEdit)
 
-        self.listBox = wx.ListBox(panel, -1)
+        self.listBox = wx.ListBox(panel, -1, size=(200, 200))
         self.listBox.Bind(wx.EVT_LISTBOX, self.OnListBox)
 
         urlSizer = wx.BoxSizer(wx.HORIZONTAL)
-        self.urlCtrl = wx.TextCtrl(panel, -1, size=(250, 23))
-        urlSizer.Add(wx.StaticText(panel, -1, 'URL :', size=textSize, style=wx.ALIGN_RIGHT), flag=wx.TOP, border=3)
+        self.urlCtrl = wx.TextCtrl(panel, -1, size=textCtrlSize)
+        urlSizer.Add(wx.StaticText(panel, -1, 'URL :', size=textSize, style=wx.ALIGN_RIGHT), flag=wx.TOP, border=spacing)
         urlSizer.Add(self.urlCtrl, flag=wx.LEFT, border=15)
 
         nameSizer = wx.BoxSizer(wx.HORIZONTAL)
-        self.nameCtrl = wx.TextCtrl(panel, -1, size=(250, 23))
-        nameSizer.Add(wx.StaticText(panel, -1, 'Name :', size=textSize, style=wx.ALIGN_RIGHT), flag=wx.TOP, border=3)
+        self.nameCtrl = wx.TextCtrl(panel, -1, size=textCtrlSize)
+        nameSizer.Add(wx.StaticText(panel, -1, 'Name :', size=textSize, style=wx.ALIGN_RIGHT), flag=wx.TOP, border=spacing)
         nameSizer.Add(self.nameCtrl, flag=wx.LEFT, border=15)
-
+        
         prioritySizer = wx.BoxSizer(wx.HORIZONTAL)
-        self.priorityCtrl = wx.SpinCtrl(panel, -1, size=(50, 23), min=1, max=5)
-        prioritySizer.Add(wx.StaticText(panel, -1, 'Priority :', size=textSize, style=wx.ALIGN_RIGHT), flag=wx.TOP, border=3)
+        self.priorityCtrl = wx.SpinCtrl(panel, -1, size=spinSize, min=1, max=5)
+        prioritySizer.Add(wx.StaticText(panel, -1, 'Priority :', size=textSize, style=wx.ALIGN_RIGHT), flag=wx.TOP, border=spacing)
         prioritySizer.Add(self.priorityCtrl, flag=wx.LEFT, border=15)
 
         qualitySizer = wx.BoxSizer(wx.HORIZONTAL)
         choices = ['best', 'high', 'medium', 'low', 'worst', 'audio only']
-        self.qualityCombo = wx.ComboBox(panel, -1, choices[0], choices=choices, size=(100, 23), style=wx.CB_READONLY)
-        qualitySizer.Add(wx.StaticText(panel, -1, 'Quality :', size=textSize, style=wx.ALIGN_RIGHT), flag=wx.TOP, border=3)
+        self.qualityCombo = wx.ComboBox(panel, -1, choices[0], choices=choices, size=comboSize, style=wx.CB_READONLY)
+        qualitySizer.Add(wx.StaticText(panel, -1, 'Quality :', size=textSize, style=wx.ALIGN_RIGHT), flag=wx.TOP, border=spacing)
         qualitySizer.Add(self.qualityCombo, flag=wx.LEFT, border=15)
 
         detailsSizer.Add(urlSizer)
@@ -121,16 +134,28 @@ class Settings(wx.Dialog):
 
         panel = wx.Panel(self.notebook)
         sizer = wx.BoxSizer(wx.VERTICAL)
-        textSize = (100, 23)
-        longTextSize = (285, 23)
+
+        if platform != 'win32': 
+            spinSize = (110, 32)
+            textSize = (120, 32)
+            longTextSize = (350, 32)
+            comboSize = (250, 32)
+            spacing = 6
+        else: 
+            spinSize = (60, 23)
+            textSize = (80, 23)
+            longTextSize = (285, 23)
+            comboSize = (180, 23)
+            spacing = 3
 
         waitSizer = wx.BoxSizer(wx.HORIZONTAL)
-        self.waitCtrl = wx.SpinCtrl(panel, -1, size=(60, 23), min=5, max=120, initial=15)
-        self.domainList = ['a', 'b']
-        self.domainCombo = wx.ComboBox(panel, -1, self.domainList[0], choices=self.domainList, size=(180, 23))
-        waitSizer.Add(wx.StaticText(panel, -1, 'Wait time :', size=((60, 23))), flag=wx.TOP, border=3)
-        waitSizer.Add(self.waitCtrl, flag=wx.LEFT | wx.RIGHT, border=15)
-        waitSizer.Add(wx.StaticText(panel, -1, 'for'), flag=wx.TOP, border=3)
+        self.waitCtrl = wx.SpinCtrl(panel, -1, size=spinSize, min=5, max=120, initial=15)
+        self.waitCtrl.Bind(wx.EVT_SPINCTRL, self.OnWaitCtrl)
+        self.domainCombo = wx.ComboBox(panel, -1, '', size=comboSize, style=wx.CB_READONLY)
+        self.domainCombo.Bind(wx.EVT_COMBOBOX, self.OnDomainCombo)
+        waitSizer.Add(wx.StaticText(panel, -1, 'Wait time :', size=textSize), flag=wx.TOP, border=spacing)
+        waitSizer.Add(self.waitCtrl, flag=wx.RIGHT, border=15)
+        waitSizer.Add(wx.StaticText(panel, -1, 'for'), flag=wx.TOP, border=spacing)
         waitSizer.Add(self.domainCombo, flag=wx.LEFT, border=15)
 
         startSizer = wx.BoxSizer(wx.HORIZONTAL)
@@ -157,11 +182,17 @@ class Settings(wx.Dialog):
         notificationSizer.Add(wx.StaticText(panel, -1, 'Send notifications about streamers going online', size=longTextSize))
         self.Bind(wx.EVT_CHECKBOX, self.OnNotificationCheckBox, self.notificationCheckBox)
 
+        if platform != 'win32': ctrlSizer = (400, 32)
+        else: ctrlSizer = (300, 23)
         dirSizer = wx.BoxSizer(wx.HORIZONTAL)
-        self.dirCtrl = wx.TextCtrl(panel, -1, '', size=(300, 23))
+        self.dirCtrl = wx.TextCtrl(panel, -1, '', size=ctrlSizer)
         dirBtn = wx.Button(panel, -1, 'Choose')
         dirBtn.Bind(wx.EVT_BUTTON, self.OnChooseDir)
-        dirSizer.Add(wx.StaticText(panel, -1, 'Download folder :', size=textSize, style=wx.ALIGN_RIGHT), flag=wx.TOP, border=3)
+
+        if platform != 'win32': spacing = 6
+        else: spacing = 3
+
+        dirSizer.Add(wx.StaticText(panel, -1, 'Download folder :', size=textSize, style=wx.ALIGN_RIGHT), flag=wx.TOP, border=spacing)
         dirSizer.Add(self.dirCtrl, flag=wx.LEFT, border=15)
         dirSizer.Add(dirBtn, flag=wx.LEFT, border=15)
 
@@ -170,18 +201,12 @@ class Settings(wx.Dialog):
         sizer.Add(trayMinimizeSizer, flag=wx.TOP | wx.LEFT, border=10)
         sizer.Add(trayCloseSizer, flag=wx.TOP | wx.LEFT, border=10)
         sizer.Add(notificationSizer, flag=wx.TOP | wx.LEFT, border=10)
-        sizer.Add(dirSizer, flag=wx.TOP, border=10)
+        
+        if platform != 'win32': sizer.Add(dirSizer, flag=wx.ALL, border=10)
+        else: sizer.Add(dirSizer, flag=wx.TOP, border=10)
 
         panel.SetSizer(sizer)
         return panel
-
-    def GetDomainList(self):
-        """ Gets all domains on streams URL present in the file. """
-
-        domains = {}
-        for streamer in self.appData['streamers_data']:
-            ...
-
 
     def GetFieldsData(self) -> dict:
         ''' Returns the data on the fields through a dictionary. '''
@@ -270,6 +295,7 @@ class Settings(wx.Dialog):
         pub.sendMessage('add-to-queue', streamer=data)
         wx.CallAfter(pub.sendMessage, topicName='add-to-tree', name=data['name'], parent_id=ID.TREE_QUEUE)
 
+        self.AddToDomainsDict(data)
         pub.sendMessage('save-file')
         self.listBox.Append(data['name'])
 
@@ -295,7 +321,7 @@ class Settings(wx.Dialog):
                 'Streamer already exists', wx.ICON_ERROR)
                 return
 
-        self.EditStreamerOnFile(index, oldName, data)
+        self.EditStreamerOnFile(index, oldName, data)   # <- Already contains self.GetDomainList()
         self.listBox.SetString(index, data['name'])
         pub.sendMessage('scheduler-edit', oldName=oldName, inData=data)
 
@@ -356,7 +382,64 @@ class Settings(wx.Dialog):
         self.appData['send_notifications'] = value
         pub.sendMessage('save-file')
 
+    def GetDomainList(self):
+        """ Gets all domains on streams URL present in the `saved file` and updates
+        to the domain wx.CombBox. Made to be called just one time at the start. """
+
+        if len(self.appData['domains']) == 0:
+            return
+
+        self.domains_dict.clear()
+        
+        # Transfering the data to the self.domains_dict. 
+        for domain, value in self.appData['domains'].items():
+            self.domains_dict[domain] = value
+        
+        # Now, put those domains the domains wx.ComboBox
+        self.domainCombo.Clear()
+        for domain in self.domains_dict.keys():
+            self.domainCombo.Append(domain)
+
+        self.appData['domains'] = self.domains_dict
+
+        # Now, just the the first value to display in it.
+        first_dom = list(self.domains_dict.keys())[0]
+        self.domainCombo.SetValue(first_dom)
+        self.waitCtrl.SetValue(str(self.domains_dict[first_dom]))
+
+    def OnWaitCtrl(self, event):
+        """ Called every time the user changes a value in the wx.SpinCtrl. """
+
+        if self.domainCombo.GetValue() != '':
+            self.isDomainModified = True
+            domain = self.domainCombo.GetValue()
+            value = int(self.waitCtrl.GetValue())
+
+            self.domains_dict[domain] = value
+
+    def OnDomainCombo(self, event):
+        """ Called every time the user changes a value in the self.domainCombo. """
+
+        domain = self.domainCombo.GetValue()
+        value = self.domains_dict[domain]
+        self.waitCtrl.SetValue(str(value))
+
+    def AddToDomainsDict(self, streamer: dict):
+        """ Adds the streamer on the `self.domains_dict`. """
+
+        domain = urlparse(streamer['url']).netloc
+        if domain not in self.domains_dict:
+            self.domains_dict[domain] = 30
+            self.appData['domains'] = self.domains_dict
+
+        # TODO Should update the ComboBox without having to re-open the window, somehow.
+
     def OnClose(self, event):
         """ Called when the user tries to close the window. """
 
+        if self.isDomainModified and len(self.domains_dict) > 0:
+            self.appData['domains'] = self.domains_dict
+            pub.sendMessage('save-file')
+
         self.Destroy()
+        

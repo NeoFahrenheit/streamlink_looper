@@ -10,7 +10,6 @@ from notifypy import Notify
 from scheduler import Scheduler
 import settings
 import about
-from utilities import dummy_event
 from enums import ID
 
 class MainFrame(wx.Frame):
@@ -74,13 +73,13 @@ class MainFrame(wx.Frame):
             self.appData['app_version'] = self.version
             self.appData['streamlink_version'] = streamlink_version
             self.appData['download_dir'] = self.default_download_path
-            self.appData['wait_time'] = 30
             self.appData['start_on_scheduler'] = False
             self.appData['tray_on_minimized'] = False
             self.appData['tray_on_closed'] = False
-            self.appData['send_notifications'] = True
+            self.appData['send_notifications'] = False
             self.appData['log_scroll_down'] = True
 
+            self.appData['domains'] = {}
             self.appData['streamers_data'] = []
 
             with open(f'{self.home_path}/.streamlink_looper.json', 'w') as f:
