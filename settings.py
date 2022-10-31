@@ -15,7 +15,6 @@ class Settings(wx.Dialog):
         self.isDomainModified = False
 
         self.InitUI()
-        self.GetDomainList()
         self.LoadData()
 
         self.CenterOnParent()
@@ -44,6 +43,9 @@ class Settings(wx.Dialog):
 
             self.listBox.SetSelection(0)
             self.OnListBox(None)
+
+            self.domains_dict = self.appData['domains']
+            self.UpdateDomainComboBox()
         
         self.startCheckBox.SetValue(self.appData['start_on_scheduler'])
         self.trayMinimizeCheckBox.SetValue(self.appData['tray_on_minimized'])
@@ -149,7 +151,7 @@ class Settings(wx.Dialog):
             spacing = 3
 
         waitSizer = wx.BoxSizer(wx.HORIZONTAL)
-        self.waitCtrl = wx.SpinCtrl(panel, -1, size=spinSize, min=5, max=120, initial=15)
+        self.waitCtrl = wx.SpinCtrl(panel, -1, size=spinSize, min=5, max=120, initial=30)
         self.waitCtrl.Bind(wx.EVT_SPINCTRL, self.OnWaitCtrl)
         self.domainCombo = wx.ComboBox(panel, -1, '', size=comboSize, style=wx.CB_READONLY)
         self.domainCombo.Bind(wx.EVT_COMBOBOX, self.OnDomainCombo)
@@ -289,13 +291,13 @@ class Settings(wx.Dialog):
                 return
         
         data['wait_until'] = ''
-        data['waited'] = 0
 
         self.appData['streamers_data'].append(data)
         pub.sendMessage('add-to-queue', streamer=data)
         wx.CallAfter(pub.sendMessage, topicName='add-to-tree', name=data['name'], parent_id=ID.TREE_QUEUE)
 
         self.AddToDomainsDict(data)
+        self.UpdateDomainComboBox()
         pub.sendMessage('save-file')
         self.listBox.Append(data['name'])
 
@@ -315,13 +317,24 @@ class Settings(wx.Dialog):
         oldName = self.listBox.GetString(index)
         # If the user is editing without changing the name, we need a exception for cheking
         # that. Hence, i != index.
+        found = -1
         for i in range (0, len(self.appData['streamers_data'])):
-            if i != index and self.appData['streamers_data'][i]['name'] == data['name']:
-                wx.MessageBox('A streamer with this name already exists. Please, choose another one.', 
-                'Streamer already exists', wx.ICON_ERROR)
-                return
+            if self.appData['streamers_data'][i]['name'] == data['name']:
+                found = i
 
-        self.EditStreamerOnFile(index, oldName, data)   # <- Already contains self.GetDomainList()
+                if i != index:
+                    wx.MessageBox('A streamer with this name already exists. Please, choose another one.', 
+                    'Streamer already exists', wx.ICON_ERROR)
+                    return
+        
+        data['wait_until'] = self.appData['streamers_data'][found]['wait_until']
+        self.EditStreamerOnFile(index, oldName, data)
+
+        oldUrl = self.appData['streamers_data'][found]['url']
+        newUrl = data['url']
+        self.EditDomainsDict(oldUrl, newUrl)
+
+        self.UpdateDomainComboBox()
         self.listBox.SetString(index, data['name'])
         pub.sendMessage('scheduler-edit', oldName=oldName, inData=data)
 
@@ -382,30 +395,20 @@ class Settings(wx.Dialog):
         self.appData['send_notifications'] = value
         pub.sendMessage('save-file')
 
-    def GetDomainList(self):
-        """ Gets all domains on streams URL present in the `saved file` and updates
-        to the domain wx.CombBox. Made to be called just one time at the start. """
+    def UpdateDomainComboBox(self):
+        """ Updates the domain wx.ComboBox using `self.domains_dict`. """
 
-        if len(self.appData['domains']) == 0:
+        if len(self.domains_dict) == 0:
             return
 
-        self.domains_dict.clear()
-        
-        # Transfering the data to the self.domains_dict. 
-        for domain, value in self.appData['domains'].items():
-            self.domains_dict[domain] = value
-        
-        # Now, put those domains the domains wx.ComboBox
         self.domainCombo.Clear()
-        for domain in self.domains_dict.keys():
-            self.domainCombo.Append(domain)
+        for key in self.domains_dict.keys():
+            self.domainCombo.Append(key)
+        
+        first_key = list(self.domains_dict.keys())[0]
+        self.domainCombo.SetValue(first_key)
 
-        self.appData['domains'] = self.domains_dict
-
-        # Now, just the the first value to display in it.
-        first_dom = list(self.domains_dict.keys())[0]
-        self.domainCombo.SetValue(first_dom)
-        self.waitCtrl.SetValue(str(self.domains_dict[first_dom]))
+        self.OnDomainCombo(None)
 
     def OnWaitCtrl(self, event):
         """ Called every time the user changes a value in the wx.SpinCtrl. """
@@ -421,18 +424,54 @@ class Settings(wx.Dialog):
         """ Called every time the user changes a value in the self.domainCombo. """
 
         domain = self.domainCombo.GetValue()
-        value = self.domains_dict[domain]
-        self.waitCtrl.SetValue(str(value))
+        if domain != '':
+            value = self.domains_dict[domain]
+            self.waitCtrl.SetValue(str(value))
 
-    def AddToDomainsDict(self, streamer: dict):
-        """ Adds the streamer on the `self.domains_dict`. """
-
+    def AddToDomainsDict(self, streamer: dict) -> str | None:
+        """ Adds the streamer url domain on the `self.domains_dict`. Should be called only in the
+        creation of a new entry. If the domain is a unique entry in the dictionary, 
+        it's value is returned. A default wait time of 30 is given. """
+        
         domain = urlparse(streamer['url']).netloc
         if domain not in self.domains_dict:
             self.domains_dict[domain] = 30
             self.appData['domains'] = self.domains_dict
 
-        # TODO Should update the ComboBox without having to re-open the window, somehow.
+            return domain
+
+    def EditDomainsDict(self, oldUrl: str, newUrl: str):
+        """ Recievies a old url name and a new url name that might have been edited.
+        Changes the `self.domains_dict` as needed. """
+
+        # If they are the same, no need to do anything.
+        if oldUrl == newUrl:
+            print('URLs are the same. Returning...')
+            return
+
+        oldDomain = urlparse(oldUrl).netloc
+        newDomain = urlparse(newUrl).netloc
+        if newDomain == oldDomain:
+            print('Domains are the same. Returning...')
+            return
+
+        # Ok, they are different.
+        # Dealing with the old domain.
+        oldCount = 0
+        for streamer in self.appData['streamers_data']:
+            if streamer['url'] == oldUrl:
+                count += 1
+
+        # If there are one or less of this domain in the file, there's no need to keep it.
+        if oldCount < 2:
+            print('There were less than two of the old domain. Removing it...')
+            del self.domains_dict[oldDomain]
+        
+        # Dealing with the new domain.
+        if newDomain not in self.domains_dict.keys():
+            print('There were no instanecs of the new domaing. Creating one...')
+            self.AddToDomainsDict({'url': newUrl})
+
 
     def OnClose(self, event):
         """ Called when the user tries to close the window. """
