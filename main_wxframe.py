@@ -1,3 +1,4 @@
+from hashlib import new
 import os
 import wx
 import wx.richtext as rt
@@ -414,7 +415,6 @@ class MainFrame(wx.Frame):
         else:
             return
 
-        #print(f'Double clicked on {clickedOn}, under {parent_text}')
         self.nameOnPopup = clickedOn
         self.parent_tree = parent_text
 
@@ -473,6 +473,13 @@ class MainFrame(wx.Frame):
 
     def EditInTree(self, oldName: str, newName: str):
         """ Edit a node in the Tree. """
+
+        if oldName == newName:
+            return
+
+        item = self.GetItemByName(oldName, self.tree_root)
+        if item.IsOk():
+            self.tree.SetItemText(item, newName)
 
         self.tree.Refresh()
 

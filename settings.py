@@ -340,6 +340,8 @@ class Settings(wx.Dialog):
         self.EditStreamerOnFile(index, oldName, data)
         self.UpdateDomainComboBox()
         self.listBox.SetString(index, data['name'])
+
+        pub.sendMessage('edit-in-tree', oldName=oldName, newName=data['name'])
         pub.sendMessage('scheduler-edit', oldName=oldName, inData=data)
 
         wx.MessageBox(f"{data['name']} was successfully saved.", 'Success', wx.ICON_INFORMATION)
@@ -403,7 +405,7 @@ class Settings(wx.Dialog):
         """ Updates the domain wx.ComboBox using `self.domains_dict`. """
 
         self.domainCombo.Clear()
-        
+
         if len(self.domains_dict) == 0:
             return
 
@@ -451,13 +453,11 @@ class Settings(wx.Dialog):
 
         # If they are the same, no need to do anything.
         if oldUrl == newUrl:
-            print(oldUrl, newUrl, 'URLs are the same. Returning...')
             return
 
         oldDomain = urlparse(oldUrl).netloc
         newDomain = urlparse(newUrl).netloc
         if newDomain == oldDomain:
-            print(oldDomain, newDomain, 'Domains are the same. Returning...')
             return
 
         # Ok, they are different.
@@ -469,12 +469,10 @@ class Settings(wx.Dialog):
 
         # If there are one of this domain in the file, there's no need to keep it.
         if oldCount == 1:
-            print('There were less than two of the old domain. Removing it...')
             del self.domains_dict[oldDomain]
         
         # Dealing with the new domain.
         if newDomain not in self.domains_dict.keys():
-            print('There were no instanecs of the new domaing. Creating one...')
             self.AddToDomainsDict({'url': newUrl})
 
     def DeleteDomainsDict(self, url: str):
@@ -483,15 +481,12 @@ class Settings(wx.Dialog):
         domain = urlparse(url).netloc
         count = 0
 
-        print('aaaaaaaaaaa\naaaaaaaaaaaaaaaaaaaaaa\nLooooooooop\n\n')
         for streamer in self.appData['streamers_data']:
             url = streamer['url']
             dom = urlparse(url).netloc
-            print(domain, dom)
             if domain == dom:
                 count += 1
         
-        print('aaaaaaaaaaa\naaaaaaaaaaaaaaaaaaaaaa\n\n\n', count)
         # If the count is one, that means that the streamer that was just deleted
         # was the only one with that domain. So, we need to remove it.
         if count == 1:
