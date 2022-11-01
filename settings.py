@@ -263,13 +263,17 @@ class Settings(wx.Dialog):
             return
 
         name = self.appData['streamers_data'][index]['name']
+        url = self.appData['streamers_data'][index]['url']
         dlg = wx.MessageDialog(self, f"Are you sure you want to remove {name}? If there is a livestream from it being downloaded, it will be canceled.",
          'Removing streamer', wx.ICON_WARNING | wx.YES_NO)
         res = dlg.ShowModal()
 
         if res == wx.ID_YES:
             self.listBox.Delete(index)
+            self.DeleteDomainsDict(url)
             del self.appData['streamers_data'][index]
+            self.UpdateDomainComboBox()
+
             pub.sendMessage('save-file')
             pub.sendMessage('remove-from-thread', name=name)
             pub.sendMessage('remove-from-queue', name=name)
@@ -328,12 +332,12 @@ class Settings(wx.Dialog):
                     return
         
         data['wait_until'] = self.appData['streamers_data'][found]['wait_until']
-        self.EditStreamerOnFile(index, oldName, data)
 
         oldUrl = self.appData['streamers_data'][found]['url']
         newUrl = data['url']
         self.EditDomainsDict(oldUrl, newUrl)
 
+        self.EditStreamerOnFile(index, oldName, data)
         self.UpdateDomainComboBox()
         self.listBox.SetString(index, data['name'])
         pub.sendMessage('scheduler-edit', oldName=oldName, inData=data)
@@ -398,10 +402,11 @@ class Settings(wx.Dialog):
     def UpdateDomainComboBox(self):
         """ Updates the domain wx.ComboBox using `self.domains_dict`. """
 
+        self.domainCombo.Clear()
+        
         if len(self.domains_dict) == 0:
             return
 
-        self.domainCombo.Clear()
         for key in self.domains_dict.keys():
             self.domainCombo.Append(key)
         
@@ -441,18 +446,18 @@ class Settings(wx.Dialog):
             return domain
 
     def EditDomainsDict(self, oldUrl: str, newUrl: str):
-        """ Recievies a old url name and a new url name that might have been edited.
+        """ Recievies a old url and a new url that might have been edited.
         Changes the `self.domains_dict` as needed. """
 
         # If they are the same, no need to do anything.
         if oldUrl == newUrl:
-            print('URLs are the same. Returning...')
+            print(oldUrl, newUrl, 'URLs are the same. Returning...')
             return
 
         oldDomain = urlparse(oldUrl).netloc
         newDomain = urlparse(newUrl).netloc
         if newDomain == oldDomain:
-            print('Domains are the same. Returning...')
+            print(oldDomain, newDomain, 'Domains are the same. Returning...')
             return
 
         # Ok, they are different.
@@ -462,8 +467,8 @@ class Settings(wx.Dialog):
             if streamer['url'] == oldUrl:
                 count += 1
 
-        # If there are one or less of this domain in the file, there's no need to keep it.
-        if oldCount < 2:
+        # If there are one of this domain in the file, there's no need to keep it.
+        if oldCount == 1:
             print('There were less than two of the old domain. Removing it...')
             del self.domains_dict[oldDomain]
         
@@ -472,6 +477,25 @@ class Settings(wx.Dialog):
             print('There were no instanecs of the new domaing. Creating one...')
             self.AddToDomainsDict({'url': newUrl})
 
+    def DeleteDomainsDict(self, url: str):
+        """ Decides if a deletion of a streamer should also delete their domain from the file. """
+
+        domain = urlparse(url).netloc
+        count = 0
+
+        print('aaaaaaaaaaa\naaaaaaaaaaaaaaaaaaaaaa\nLooooooooop\n\n')
+        for streamer in self.appData['streamers_data']:
+            url = streamer['url']
+            dom = urlparse(url).netloc
+            print(domain, dom)
+            if domain == dom:
+                count += 1
+        
+        print('aaaaaaaaaaa\naaaaaaaaaaaaaaaaaaaaaa\n\n\n', count)
+        # If the count is one, that means that the streamer that was just deleted
+        # was the only one with that domain. So, we need to remove it.
+        if count == 1:
+            del self.domains_dict[domain]
 
     def OnClose(self, event):
         """ Called when the user tries to close the window. """
