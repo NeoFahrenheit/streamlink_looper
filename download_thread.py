@@ -6,6 +6,7 @@ import subprocess
 from pubsub import pub
 import json
 from threading import Thread
+from urllib.parse import urlparse
 import stopwatch
 import utilities as util
 from enums import ID
@@ -57,7 +58,8 @@ class Download(Thread):
                 pass
             
             d = self.GetStreamerFromFile(self.name)
-            pub.sendMessage('add-to-queue', streamer=d)
+            domain = urlparse(self.url).netloc
+            pub.sendMessage('add-to-queue', streamer=d, queue_domain=domain)
 
             pub.sendMessage('remove-from-thread', name=self.name)
 

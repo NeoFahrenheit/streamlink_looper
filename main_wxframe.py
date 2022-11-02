@@ -576,6 +576,7 @@ class MainFrame(wx.Frame):
                     self.scheduler_thread.TransferFromFridgeToQueue(self.nameOnPopup)
 
                 elif id == ID.REMOVE_FROM_FRIDGE_CHECK:
+                    self.scheduler_thread.TransferFromFridgeToQueue(self.nameOnPopup)
                     streamer = self.scheduler_thread.GetStreamerByName(self.nameOnPopup)
                     self._CheckStreamerNow(streamer)
                     

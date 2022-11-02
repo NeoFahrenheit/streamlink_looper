@@ -198,26 +198,27 @@ class Scheduler(Thread):
         pub.sendMessage('log', streamer=name, time=time, status=status)
 
     def OnEdit(self, oldName: str, inData: dict):
-        ''' pubsub('scheduler-edit) -> A streamer has been edit though the setings menu. This function
-        changes the `self.scheduler` in the scheduler. If this stremaer thread is active, the changes will
-        remain unchanged there. '''
+        ''' pubsub('scheduler-edit) -> A streamer has been edit though the setings menu. 
+        If this stremaer thread is active, the changes will remain unchanged there. '''
 
-        for i in range(0, len(self.scheduler)):
-            if self.scheduler[i]['name'] == oldName:
-                self.scheduler[i]['name'] = inData['name']
-                self.scheduler[i]['url'] = inData['url']
-                self.scheduler[i]['priority'] = inData['priority']
-                self.scheduler[i]['quality'] = inData['quality']
+        for queue in self.scheduler:
+            for streamer in queue['streamers']:
+                if streamer['name'] == oldName:
+                    streamer['name'] = inData['name']
+                    streamer['url'] = inData['url']
+                    streamer['priority'] = inData['priority']
+                    streamer['quality'] = inData['quality']
 
-                CallAfter(pub.sendMessage, topicName='edit-in-tree', oldName=oldName, newName=inData['name'])  
-                return
+                    CallAfter(pub.sendMessage, topicName='edit-in-tree', oldName=oldName, newName=inData['name'])  
+                    return
 
     def TransferFromFridgeToQueue(self, name: str):
         """ Gives a empty string value to the 'wait_until' key on the queue and the file. """
 
-        for i in range(0, len(self.scheduler)):
-            if self.scheduler[i]['name'] == name:
-                self.scheduler[i]['wait_until'] = ''
+        for queue in self.scheduler:
+            for streamer in queue['streamers']:
+                if streamer['name'] == name:
+                    streamer['wait_until'] = ''
 
         for i in range(0, len(self.appData['streamers_data'])):
             if self.appData['streamers_data'][i]['name'] == name:
