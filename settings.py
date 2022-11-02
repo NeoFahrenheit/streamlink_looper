@@ -1,9 +1,11 @@
 import os
 from sys import platform
 import wx
+import wx.adv
 from pubsub import pub
 from urllib.parse import urlparse
 from enums import ID
+import tooltips
 
 class Settings(wx.Dialog):
     def __init__(self, parent, appData: list):
@@ -92,7 +94,11 @@ class Settings(wx.Dialog):
 
         urlSizer = wx.BoxSizer(wx.HORIZONTAL)
         self.urlCtrl = wx.TextCtrl(panel, -1, size=textCtrlSize)
-        urlSizer.Add(wx.StaticText(panel, -1, 'URL :', size=textSize, style=wx.ALIGN_RIGHT), flag=wx.TOP, border=spacing)
+        url_text = wx.StaticText(panel, -1, 'URL :', size=textSize, style=wx.ALIGN_RIGHT)
+        url_tooltip = wx.ToolTip(tooltips.URL_TOOLTIP)
+        url_tooltip.SetAutoPop(30_000)
+        self.urlCtrl.SetToolTip(url_tooltip)
+        urlSizer.Add(url_text, flag=wx.TOP, border=spacing)
         urlSizer.Add(self.urlCtrl, flag=wx.LEFT, border=15)
 
         nameSizer = wx.BoxSizer(wx.HORIZONTAL)
@@ -145,7 +151,7 @@ class Settings(wx.Dialog):
             spacing = 6
         else: 
             spinSize = (60, 23)
-            textSize = (80, 23)
+            textSize = (100, 23)
             longTextSize = (285, 23)
             comboSize = (180, 23)
             spacing = 3
@@ -297,7 +303,8 @@ class Settings(wx.Dialog):
         data['wait_until'] = ''
 
         self.appData['streamers_data'].append(data)
-        pub.sendMessage('add-to-queue', streamer=data)
+        domain = urlparse(data['url']).netloc
+        pub.sendMessage('add-to-queue', streamer=data, queue_domain=domain)
         wx.CallAfter(pub.sendMessage, topicName='add-to-tree', name=data['name'], parent_id=ID.TREE_QUEUE)
 
         self.AddToDomainsDict(data)

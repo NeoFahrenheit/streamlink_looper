@@ -289,7 +289,6 @@ class MainFrame(wx.Frame):
         ''' Starts the scheduler. '''
 
         if not self.scheduler_thread.isActive:
-            self.scheduler_thread.isActive = True
             self.scheduler_thread.start()
 
     def OnPause(self, event):
