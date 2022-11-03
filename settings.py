@@ -12,6 +12,7 @@ class Settings(wx.Dialog):
         super().__init__(parent)
 
         self.SetTitle('Settings')
+        self.parent = parent
         self.appData = appData
         self.domains_dict  = {}
         self.isDomainModified = False
@@ -520,9 +521,10 @@ class Settings(wx.Dialog):
 
         if self.isDomainModified and len(self.domains_dict) > 0:
             self.appData['domains'] = self.domains_dict
+            pub.sendMessage('update-domain-wait-time')
             pub.sendMessage('save-file')
 
-            pub.sendMessage('update-domain-wait-time')
+        self.Unbind(wx.EVT_CLOSE)
 
         event.Skip()
         self.Close()

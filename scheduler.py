@@ -180,6 +180,7 @@ class Scheduler(Thread):
         if not self.isActive:
             return
         
+        print('OnTimer...')
         for queue in self.scheduler:
             queue['queue_waited'] += 1
 

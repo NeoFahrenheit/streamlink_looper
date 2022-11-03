@@ -282,7 +282,7 @@ class MainFrame(wx.Frame):
         ''' Opens the settings window. '''
 
         frame = settings.Settings(self, self.appData)
-        frame.ShowModal()
+        frame.ShowWindowModal()            
 
     def OnStart(self, event):
         ''' Starts the scheduler. '''
