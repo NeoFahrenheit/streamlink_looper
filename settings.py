@@ -522,6 +522,8 @@ class Settings(wx.Dialog):
             self.appData['domains'] = self.domains_dict
             pub.sendMessage('save-file')
 
+            pub.sendMessage('update-domain-wait-time')
+
         event.Skip()
         self.Close()
         

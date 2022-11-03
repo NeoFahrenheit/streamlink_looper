@@ -28,6 +28,7 @@ class Scheduler(Thread):
         pub.subscribe(self.RemoveFromQueue, 'remove-from-queue')
         pub.subscribe(self.OnEdit, 'scheduler-edit')
         pub.subscribe(self.RemoveFromThread, 'remove-from-thread')
+        pub.subscribe(self.UpdateDomainsWaitTime, 'update-domain-wait-time')
 
         self.start()
 
@@ -73,40 +74,41 @@ class Scheduler(Thread):
 
         if not self.scheduler:
             return
-
-        # We check first how the wait is for everybody.
-        for queue in self.scheduler:
-            for streamer in queue['streamers']:
-                waited = streamer['waited']
-                limit = queue['wait_time'] * 3 * streamer['priority']
-                streamer['waited'] = waited - limit
-
-            # Now we need the one who waited more.
-            queue['streamers'].sort(reverse=True, key=lambda x: x['waited'])
-
+        
         queue_index = 0
         for queue in self.scheduler:
             if queue['domain'] == domain:
                 break
             else:
                 queue_index += 1
-                                
-        index = -1
-        i = 0
 
         queue = self.scheduler[queue_index]
+        wait_time = queue['wait_time']
+
+        # We check first how the wait is for everybody in the queue.
+        wait_queue = []
+        i = 0
         for streamer in queue['streamers']:
-            if streamer['wait_until'] != '':
-                i += 1
-                continue
-            else:
-                index = i
+            waited = streamer['waited']
+            limit = wait_time * 3 * streamer['priority']
+            wait_queue.append((i, waited - limit))
+            i += 1
+
+        # Now we need the one who waited more.
+        wait_queue.sort(reverse=True, key=lambda x: x[1])
+        
+        chosen = -1
+        # Choosing the one
+        for index in wait_queue:
+            i = index[0]
+            if queue['streamers'][i]['wait_until'] == '':
+                chosen = i
                 break
 
-        if index < 0:
+        if chosen < 0:
             return
 
-        streamer_dict = self.scheduler[queue_index]['streamers'][index]
+        streamer_dict = queue['streamers'][chosen]
         is_live = self.CheckStreamer(streamer_dict)
 
         # We need to be careful. When we removed from the queue, our index
@@ -232,3 +234,11 @@ class Scheduler(Thread):
             if self.appData['streamers_data'][i]['name'] == name:
                 self.appData['streamers_data'][i]['wait_until'] = ''
                 pub.sendMessage('save-file')
+
+    def UpdateDomainsWaitTime(self):
+        """ Updates the wait time for domains. """
+
+        for domain, wait in self.appData['domains'].items():
+            for queue in self.scheduler:
+                if queue['domain'] == domain:
+                    queue['wait_time'] = wait
