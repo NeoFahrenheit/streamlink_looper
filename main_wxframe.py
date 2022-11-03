@@ -1,4 +1,3 @@
-from hashlib import new
 import os
 import wx
 import wx.richtext as rt
@@ -289,7 +288,8 @@ class MainFrame(wx.Frame):
         ''' Starts the scheduler. '''
 
         if not self.scheduler_thread.isActive:
-            self.scheduler_thread.start()
+            self.scheduler_thread.isActive = True
+            self.scheduler_thread.ChooseOneFromEachDomain()
 
     def OnPause(self, event):
         ''' Stops the scheduler (the thread remains active). The ongoing downloads remains active. '''
@@ -299,9 +299,8 @@ class MainFrame(wx.Frame):
     def OnStop(self, event):
         ''' Stop the scheduler (the thread remains active) and all ongoing downloads. '''
 
-        if self.scheduler_thread.isActive:
-            pub.sendMessage('kill-download-threads')
-            self.scheduler_thread.isActive = False
+        pub.sendMessage('kill-download-threads')
+        self.scheduler_thread.isActive = False
 
     def OnTimer(self, event):
         ''' Called every second. '''
@@ -628,5 +627,19 @@ class TaskBarIcon(wx.adv.TaskBarIcon):
 
         self.Bind(wx.adv.EVT_TASKBAR_LEFT_DOWN, parent.OnShowFrame)
 
-    # def CreatePopupMenu(self):
-    #     return self.parent.scheduler_menu
+    def CreatePopupMenu(self):
+        menu = wx.Menu()
+
+        start = menu.Append(-1, 'Start', 'Start the scheduler.')
+        pause = menu.Append(-1, 'Pause', 'Pause the scheduler. The ongoing downloads remains active.')
+        stop = menu.Append(-1, 'Stop', 'Stop the scheduler and all ongoing downloads.')
+
+        menu.AppendSeparator()
+        quit = menu.Append(-1, 'Quit')
+
+        self.Bind(wx.EVT_MENU, self.parent.OnStart, start)
+        self.Bind(wx.EVT_MENU, self.parent.OnPause, pause)
+        self.Bind(wx.EVT_MENU, self.parent.OnStop, stop)
+        self.Bind(wx.EVT_MENU, self.parent.OnExit, quit)
+
+        return menu

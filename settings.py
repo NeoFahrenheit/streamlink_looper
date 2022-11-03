@@ -522,5 +522,6 @@ class Settings(wx.Dialog):
             self.appData['domains'] = self.domains_dict
             pub.sendMessage('save-file')
 
-        self.Destroy()
+        event.Skip()
+        self.Close()
         

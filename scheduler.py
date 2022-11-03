@@ -29,13 +29,21 @@ class Scheduler(Thread):
         pub.subscribe(self.OnEdit, 'scheduler-edit')
         pub.subscribe(self.RemoveFromThread, 'remove-from-thread')
 
+        self.start()
+
     def run(self):
         ''' Starts this thread's activity. '''
 
-        self.isActive = True
-        for queue in self.scheduler:
-            self.ChooseOne(queue['domain'])
-                
+        if self.isActive:
+            self.ChooseOneFromEachDomain()
+
+    def ChooseOneFromEachDomain(self):
+        """ Choose one streamer to be checked from each domain. """
+
+        if self.isActive:
+            for queue in self.scheduler:
+                self.ChooseOne(queue['domain'])
+
     def PrepareData(self):
         ''' Prepares the data for the scheduler. Everybody gets their wait time. 
         The closest the wait_time reaches or surpasses the limit `(wait_time * 3 * priority)`, the streamer
@@ -164,7 +172,7 @@ class Scheduler(Thread):
 
         for queue in self.scheduler:
             if queue['domain'] == queue_domain:
-                queue_domain['streamers'].append(streamer)
+                queue['streamers'].append(streamer)
 
     def OnTimer(self):
         if not self.isActive:
