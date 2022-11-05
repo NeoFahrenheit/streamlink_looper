@@ -57,11 +57,13 @@ class Download(Thread):
             except:
                 pass
             
-            d = self.GetStreamerFromFile(self.name)
-            domain = urlparse(self.url).netloc
-            pub.sendMessage('add-to-queue', streamer=d, queue_domain=domain)
+        d = self.GetStreamerFromFile(self.name)
+        domain = urlparse(self.url).netloc
+        pub.sendMessage('add-to-queue', streamer=d, queue_domain=domain)
+        pub.sendMessage('remove-from-thread', name=self.name)
 
-            pub.sendMessage('remove-from-thread', name=self.name)
+        CallAfter(pub.sendMessage, topicName='remove-from-tree', name=self.name, parent_id=ID.TREE_DOWNLOADING)
+        CallAfter(pub.sendMessage, topicName='add-to-tree', name=self.name, parent_id=ID.TREE_QUEUE)
 
         sys.exit()
 
