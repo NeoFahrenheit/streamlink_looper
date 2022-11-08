@@ -39,4 +39,4 @@ All the other libraries should come with Python by default. At a later point, wh
 
 All contribution is welcomed. The software is in the start part of it's development and all help is apreciated.
 
-![Image of the main window with some streams being downloaded.](https://i.imgur.com/NxzMso9.png)
+![Image of the main window with some streams being downloaded.](https://i.imgur.com/sieJFNe.png)
