@@ -102,7 +102,13 @@ class Download(Thread):
                 self.dl_temp = 0
 
             file.write(data)
-            data = self.stream_data.read(1024)
+            
+            try:
+                data = self.stream_data.read(1024)
+            except:
+                file.close()
+                return
+
         file.close()
 
 

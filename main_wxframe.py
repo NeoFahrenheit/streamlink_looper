@@ -42,10 +42,7 @@ class MainFrame(wx.Frame):
         self.CenterOnScreen()
 
         self.taskBarIcon = TaskBarIcon(self)
-
-        self.scheduler_thread = Scheduler(self, self.appData)
-        if self.appData['start_on_scheduler']:
-            self.OnStart(None)
+        self.scheduler_thread = Scheduler(self, self.appData, self.appData['start_on_scheduler'])
 
         self.menu.Check(ID.MENU_LOG_CHECKBOX, self.appData['log_scroll_down'])
         
@@ -287,9 +284,7 @@ class MainFrame(wx.Frame):
     def OnStart(self, event):
         ''' Starts the scheduler. '''
 
-        if not self.scheduler_thread.isActive:
-            self.scheduler_thread.isActive = True
-            self.scheduler_thread.ChooseOneFromEachDomain()
+        self.scheduler_thread.Restart()
 
     def OnPause(self, event):
         ''' Stops the scheduler (the thread remains active). The ongoing downloads remains active. '''

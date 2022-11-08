@@ -8,11 +8,12 @@ from urllib.parse import urlparse
 from enums import ID
 
 class Scheduler(Thread):
-    def __init__(self, parent, appData):
+    def __init__(self, parent, appData: dict, startNow: bool):
         Thread.__init__(self)
 
         self.session = streamlink.Streamlink()
-        self.isActive = False
+        self.isActive = startNow
+        self.wasOnBefore = False
         self.parent = parent
         self.appData = appData
 
@@ -36,6 +37,14 @@ class Scheduler(Thread):
         ''' Starts this thread's activity. '''
 
         if self.isActive:
+            self.ChooseOneFromEachDomain()
+            self.wasOnBefore = True
+
+    def Restart(self):
+        """ Starts the thread and check if it's the first time it being turned on to choose streams from each domain. """
+
+        self.isActive = True
+        if not self.wasOnBefore:
             self.ChooseOneFromEachDomain()
 
     def ChooseOneFromEachDomain(self):
@@ -177,6 +186,8 @@ class Scheduler(Thread):
                 queue['streamers'].append(streamer)
 
     def OnTimer(self):
+        """ Gets called every second. """
+
         if not self.isActive:
             return
         
