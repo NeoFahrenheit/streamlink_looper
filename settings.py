@@ -593,13 +593,11 @@ class Settings(wx.Dialog):
                     isThereInvalidCh = True
                     break
             
-            if not isThereInvalidCh:
-                if self.SetTwitchAuthOnFile(auth):
-                    wx.MessageBox('Twitch authentication sucessfully setted on file. You need to restart the application for changes to take effect.', 'Sucess', wx.ICON_INFORMATION)
-                    pub.sendMessage('save-file')
-                else:
-                    wx.MessageBox('Streamlink configuration file not found.', 'File not found', wx.ICON_ERROR)
+            if isThereInvalidCh is False:
+                wx.MessageBox('Twitch authentication sucessfully added. You need to restart the application for changes to take effect.', 'Sucess', wx.ICON_INFORMATION)
+                self.appData['twitch_auth'] = auth
 
+                pub.sendMessage('save-file')
 
         self.Unbind(wx.EVT_CLOSE)
 

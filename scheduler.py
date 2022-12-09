@@ -11,7 +11,7 @@ class Scheduler(Thread):
     def __init__(self, parent, appData: dict, startNow: bool):
         Thread.__init__(self)
 
-        self.session = streamlink.Streamlink()
+        self.session = streamlink.Streamlink(options={'--twitch-api-header': f"Authorization=OAuth {appData['twitch_auth']}"})
         self.isActive = startNow
         self.wasOnBefore = False
         self.parent = parent

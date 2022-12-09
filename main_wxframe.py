@@ -1,5 +1,6 @@
 import os
 import wx
+from sys import exit
 import wx.richtext as rt
 import wx.adv
 import subprocess
@@ -19,7 +20,7 @@ class MainFrame(wx.Frame):
         self.STATUS_ON_COLOR = '#46734d'
         self.STATUS_OFF_COLOR = '#cc3535'
 
-        self.SetTitle('Streamlink Lopper')
+        self.SetTitle('Streamlink Looper')
         self.SetSize(1000, 600)
         self.SetIcon(wx.Icon('media/icon_24.png'))
         self.status_bar = self.CreateStatusBar()
@@ -390,6 +391,7 @@ class MainFrame(wx.Frame):
         else:
             self.taskBarIcon.Destroy()
             self.Destroy()
+            exit()
 
     def OnExit(self, event):
         """ Truly exits the program, no matter what settings is on. """
