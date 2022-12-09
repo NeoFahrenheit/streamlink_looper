@@ -75,6 +75,7 @@ class MainFrame(wx.Frame):
             self.appData['tray_on_closed'] = False
             self.appData['send_notifications'] = False
             self.appData['log_scroll_down'] = True
+            self.appData['twitch_auth'] = ''
 
             self.appData['domains'] = {}
             self.appData['streamers_data'] = []

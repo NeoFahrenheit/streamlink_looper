@@ -4,6 +4,7 @@ import wx
 import wx.adv
 from pubsub import pub
 from urllib.parse import urlparse
+import webbrowser
 from enums import ID
 import tooltips
 
@@ -16,6 +17,8 @@ class Settings(wx.Dialog):
         self.appData = appData
         self.domains_dict  = {}
         self.isDomainModified = False
+
+        self.file_twitch_auth = ''
 
         self.InitUI()
         self.LoadData()
@@ -55,6 +58,9 @@ class Settings(wx.Dialog):
         self.trayCloseCheckBox.SetValue(self.appData['tray_on_closed'])
         self.notificationCheckBox.SetValue(self.appData['send_notifications'])
         self.dirCtrl.SetValue(self.appData['download_dir'])
+        self.twitchAuthCtrl.SetValue(self.appData['twitch_auth'])
+
+        self.file_twitch_auth = self.appData['twitch_auth']
 
     def GetStreamersPanel(self) -> wx.Panel:
         ''' Gets the streamer panel. '''
@@ -136,13 +142,13 @@ class Settings(wx.Dialog):
         detailsSizer.Add(qualitySizer, flag=wx.TOP, border=10)
 
         BtnSizer = wx.BoxSizer(wx.HORIZONTAL)
-        BtnSizer.Add(editBtn, flag=wx.ALIGN_CENTER)
-        BtnSizer.Add(createBtn, flag=wx.LEFT | wx.ALIGN_CENTER, border=50)
-        detailsSizer.Add(BtnSizer, flag=wx.TOP | wx.ALIGN_CENTER, border=50)
+        BtnSizer.Add(clearBtn, flag=wx.ALIGN_CENTER)
+        BtnSizer.Add(editBtn, flag=wx.LEFT | wx.ALIGN_CENTER, border=25)
+        BtnSizer.Add(createBtn, flag=wx.LEFT | wx.ALIGN_CENTER, border=25)
+        detailsSizer.Add(BtnSizer, flag=wx.TOP | wx.ALIGN_CENTER, border=25)
 
         buttonsSizer = wx.BoxSizer(wx.HORIZONTAL)
-        buttonsSizer.Add(clearBtn)
-        buttonsSizer.Add(removeBtn, flag=wx.LEFT, border=10)
+        buttonsSizer.Add(removeBtn, flag=wx.ALIGN_CENTER)
 
         listSizer.Add(buttonsSizer, proportion=1, flag=wx.BOTTOM, border=10)
         listSizer.Add(self.listBox, proportion=5, flag=wx.EXPAND)
@@ -221,14 +227,28 @@ class Settings(wx.Dialog):
         dirSizer.Add(self.dirCtrl, flag=wx.LEFT, border=15)
         dirSizer.Add(dirBtn, flag=wx.LEFT, border=15)
 
+        authSizer = wx.BoxSizer(wx.HORIZONTAL)
+        self.twitchAuthCtrl = wx.TextCtrl(panel, -1, '', size=ctrlSizer)
+        authInfoBtn = wx.Button(panel, -1, 'Info')
+        authSizer.Add(wx.StaticText(panel, -1, 'Twitch Auth :', size=textSize, style=wx.ALIGN_RIGHT), flag=wx.TOP, border=spacing)
+        authSizer.Add(self.twitchAuthCtrl, flag=wx.LEFT, border=15)
+        authSizer.Add(authInfoBtn, flag=wx.LEFT, border=15)
+        authInfoBtn.Bind(wx.EVT_BUTTON, self.OnAuthInfo)
+
         sizer.Add(waitSizer, flag=wx.TOP | wx.LEFT, border=10)
         sizer.Add(startSizer, flag=wx.TOP | wx.LEFT, border=10)
         sizer.Add(trayMinimizeSizer, flag=wx.TOP | wx.LEFT, border=10)
         sizer.Add(trayCloseSizer, flag=wx.TOP | wx.LEFT, border=10)
         sizer.Add(notificationSizer, flag=wx.TOP | wx.LEFT, border=10)
         
-        if platform != 'win32': sizer.Add(dirSizer, flag=wx.ALL, border=10)
-        else: sizer.Add(dirSizer, flag=wx.TOP, border=10)
+        if platform != 'win32': 
+            sizer.Add(dirSizer, flag=wx.ALL, border=10)
+            sizer.Add(authSizer, flag=wx.ALL, border=10)
+
+        else: 
+            sizer.Add(dirSizer, flag=wx.TOP, border=10)
+            sizer.Add(authSizer, flag=wx.TOP, border=10)
+
 
         panel.SetSizer(sizer)
         return panel
@@ -393,6 +413,11 @@ class Settings(wx.Dialog):
             self.appData['download_dir'] = user_path
             pub.sendMessage('save-file')
 
+    def OnAuthInfo(self, event):
+        ''' Called when the user clicks info the info button about the authentication. '''
+
+        webbrowser.open_new('https://streamlink.github.io/latest/cli/plugins/twitch.html#authentication')
+
     def OnCloseTrayCheckBox(self, event):
         """ Called when user clicks on close to system tray checkbox. """
 
@@ -516,6 +541,41 @@ class Settings(wx.Dialog):
         if count == 1:
             del self.domains_dict[domain]
 
+    def SetTwitchAuthOnFile(self, auth: str) -> bool:
+        ''' Modifies the `config` file present in `user/AppData/Roaming/streamlink` to add the twitch auth code. 
+        Returns True if successful. If `auth` is empty, the configuration line is deleted. '''
+
+        home = os.path.expanduser('~')
+        path = os.path.join(home, 'AppData', 'Roaming', 'streamlink', 'config')
+        lines = []
+
+        if os.path.isfile(path):
+            with open(path, 'r') as file:
+                lines = file.readlines()
+
+            line_found = False
+            for i in range (0, len(lines)):
+                if lines[i].startswith('"--twitch'):
+                    line_found = True
+                    if not auth:
+                        del lines[i]
+                        self.appData['twitch_auth'] = ''
+                    else:
+                        lines[i] = f'"--twitch-api-header=Authorization=OAuth {auth}"'
+                        self.appData['twitch_auth'] = auth
+
+            if not line_found:
+                lines.append(f'"--twitch-api-header=Authorization=OAuth {auth}"')
+                self.appData['twitch_auth'] = auth
+
+            with open(path, 'w') as file:
+                file.writelines(lines)
+
+            return True
+
+        else:
+            return False
+
     def OnClose(self, event):
         """ Called when the user tries to close the window. """
 
@@ -523,6 +583,23 @@ class Settings(wx.Dialog):
             self.appData['domains'] = self.domains_dict
             pub.sendMessage('update-domain-wait-time')
             pub.sendMessage('save-file')
+
+        auth = self.twitchAuthCtrl.GetValue().strip()
+        isThereInvalidCh = False
+        if auth != self.file_twitch_auth:
+            for char in auth:
+                if char == '-' or char == '=':
+                    wx.MessageBox('Please, paste only the twitch alphanumeric code extracted from the browser.', 'Error', wx.ICON_ERROR)
+                    isThereInvalidCh = True
+                    break
+            
+            if not isThereInvalidCh:
+                if self.SetTwitchAuthOnFile(auth):
+                    wx.MessageBox('Twitch authentication sucessfully setted on file. You need to restart the application for changes to take effect.', 'Sucess', wx.ICON_INFORMATION)
+                    pub.sendMessage('save-file')
+                else:
+                    wx.MessageBox('Streamlink configuration file not found.', 'File not found', wx.ICON_ERROR)
+
 
         self.Unbind(wx.EVT_CLOSE)
 
