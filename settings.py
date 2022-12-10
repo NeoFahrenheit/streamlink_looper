@@ -338,9 +338,10 @@ class Settings(wx.Dialog):
                 return
         
         data['wait_until'] = ''
-
         self.appData['streamers_data'].append(data)
         domain = urlparse(data['url']).netloc
+        
+        data['waited'] = 0
         pub.sendMessage('add-to-queue', streamer=data, queue_domain=domain)
         wx.CallAfter(pub.sendMessage, topicName='add-to-tree', name=data['name'], parent_id=ID.TREE_QUEUE)
 
@@ -540,41 +541,6 @@ class Settings(wx.Dialog):
         # was the only one with that domain. So, we need to remove it.
         if count == 1:
             del self.domains_dict[domain]
-
-    def SetTwitchAuthOnFile(self, auth: str) -> bool:
-        ''' Modifies the `config` file present in `user/AppData/Roaming/streamlink` to add the twitch auth code. 
-        Returns True if successful. If `auth` is empty, the configuration line is deleted. '''
-
-        home = os.path.expanduser('~')
-        path = os.path.join(home, 'AppData', 'Roaming', 'streamlink', 'config')
-        lines = []
-
-        if os.path.isfile(path):
-            with open(path, 'r') as file:
-                lines = file.readlines()
-
-            line_found = False
-            for i in range (0, len(lines)):
-                if lines[i].startswith('"--twitch'):
-                    line_found = True
-                    if not auth:
-                        del lines[i]
-                        self.appData['twitch_auth'] = ''
-                    else:
-                        lines[i] = f'"--twitch-api-header=Authorization=OAuth {auth}"'
-                        self.appData['twitch_auth'] = auth
-
-            if not line_found:
-                lines.append(f'"--twitch-api-header=Authorization=OAuth {auth}"')
-                self.appData['twitch_auth'] = auth
-
-            with open(path, 'w') as file:
-                file.writelines(lines)
-
-            return True
-
-        else:
-            return False
 
     def OnClose(self, event):
         """ Called when the user tries to close the window. """
