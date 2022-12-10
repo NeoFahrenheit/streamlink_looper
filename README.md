@@ -1,8 +1,8 @@
 # Streamlink Looper
 
-Have you gone to your work or school and came back home only to find out that your favorite stream lost the connection, restarted the livestream soon afterwards and you lost the entire recording because the script ended?
+Have you gone to your work or school and came back home only to find out that your favorite streamer lost the connection, restarted the livestream soon afterwards and you lost the entire recording because the script ended?
 
-Now, you can add your favorite streams to the software so you can never lose a livestream from them again.
+Now, you can add your favorite streamer to the software so you can never lose a livestream from them again.
 
 
 ## Features
@@ -20,8 +20,7 @@ Now, you can add your favorite streams to the software so you can never lose a l
 
 ## TODO
 
- - Different scheduler for each different livestream websites. Set different wait time for each of them. They must not conflict with each other.
- - Add the feature to check if a specific streamer is online immediately.
+ - Nothing in mind right now. Ideias?
 
 ## How to run the app
 
@@ -31,7 +30,6 @@ First, you need to make sure if you have all the dependencies installed.
  2. [pypubsub](https://pypubsub.readthedocs.io/en/v4.0.3/installation.html)
  3. [streamlink](https://pypi.org/project/streamlink/)
  4. [notify.py](https://github.com/ms7m/notify-py)
- 5. [ffmpeg](https://ffmpeg.org/download.html) on PATH (Optional)
 
 All the other libraries should come with Python by default. At a later point, when the software becames more robust, an *.exe* installer will be provided.
 
