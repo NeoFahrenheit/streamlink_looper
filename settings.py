@@ -180,7 +180,7 @@ class Settings(wx.Dialog):
         self.waitCtrl.Bind(wx.EVT_SPINCTRL, self.OnWaitCtrl)
         self.domainCombo = wx.ComboBox(panel, -1, '', size=comboSize, style=wx.CB_READONLY)
         self.domainCombo.Bind(wx.EVT_COMBOBOX, self.OnDomainCombo)
-        wait_text = wx.StaticText(panel, -1, 'Wait time :', size=textSize)
+        wait_text = wx.StaticText(panel, -1, 'Wait time (s) :', size=textSize)
         wait_tooltip = wx.ToolTip(tooltips.WAIT_TOOLTIP)
         wait_tooltip.SetAutoPop(30_000)
         wait_text.SetToolTip(wait_tooltip)
