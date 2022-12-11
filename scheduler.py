@@ -62,7 +62,7 @@ class Scheduler(Thread):
         becomes more prioritized to be checked for availability. When the streamer gets checked,
         their wait_time is set to zero.
         '''
-
+    
         for domain, wait_time in self.appData['domains'].items():
             dic = {}
             dic['domain'] = domain
@@ -183,8 +183,12 @@ class Scheduler(Thread):
     def AddToQueue(self, streamer: dict, queue_domain: str):
         ''' Adds a stream to the queue. '''
 
+        # TODO We need to check the domain of the recently added streamer. Otherwise, it wont
+        # get check unless the aplication is restarted.
+
         for queue in self.scheduler:
             if queue['domain'] == queue_domain:
+                streamer['waited'] = 0
                 queue['streamers'].append(streamer)
 
     def OnTimer(self):

@@ -556,8 +556,12 @@ class MainFrame(wx.Frame):
 
             case 'On the queue':
                 if id == ID.CHECK_NOW:
-                    streamer = self.scheduler_thread.GetStreamerByName(self.nameOnPopup)
-                    self._CheckStreamerNow(streamer)
+                    if self.scheduler_thread.isActive:
+                        streamer = self.scheduler_thread.GetStreamerByName(self.nameOnPopup)
+                        self._CheckStreamerNow(streamer)
+                    else:
+                        wx.MessageBox('Please, start the scheduler before checking streamers',
+                        'Scheduler stopped', wx.ICON_ERROR)
 
                 else:
                     self.RemoveFromTree(self.nameOnPopup, ID.TREE_QUEUE)

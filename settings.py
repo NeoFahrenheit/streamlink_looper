@@ -341,7 +341,6 @@ class Settings(wx.Dialog):
         self.appData['streamers_data'].append(data)
         domain = urlparse(data['url']).netloc
         
-        data['waited'] = 0
         pub.sendMessage('add-to-queue', streamer=data, queue_domain=domain)
         wx.CallAfter(pub.sendMessage, topicName='add-to-tree', name=data['name'], parent_id=ID.TREE_QUEUE)
 
