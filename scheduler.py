@@ -183,8 +183,19 @@ class Scheduler(Thread):
     def AddToQueue(self, streamer: dict, queue_domain: str):
         ''' Adds a stream to the queue. '''
 
-        # TODO We need to check the domain of the recently added streamer. Otherwise, it wont
-        # get check unless the aplication is restarted.
+        found = False
+        for dic in self.scheduler:
+            if dic['domain'] == queue_domain:
+                found = True
+
+        # If the domain for this streamer does not exists yet, we create it.
+        if not found:
+            dic = {}
+            dic['domain'] = queue_domain
+            dic['wait_time'] = 30
+            dic['queue_waited'] = 0
+            dic['streamers'] = []
+            self.scheduler.append(dic)
 
         for queue in self.scheduler:
             if queue['domain'] == queue_domain:

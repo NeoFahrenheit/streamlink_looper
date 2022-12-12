@@ -341,12 +341,12 @@ class Settings(wx.Dialog):
         self.appData['streamers_data'].append(data)
         domain = urlparse(data['url']).netloc
         
-        pub.sendMessage('add-to-queue', streamer=data, queue_domain=domain)
         wx.CallAfter(pub.sendMessage, topicName='add-to-tree', name=data['name'], parent_id=ID.TREE_QUEUE)
-
         self.AddToDomainsDict(data)
         self.UpdateDomainComboBox()
+        
         pub.sendMessage('save-file')
+        pub.sendMessage('add-to-queue', streamer=data, queue_domain=domain)
         self.listBox.Append(data['name'])
 
         wx.MessageBox('Streamer successfully saved.', 'Success', wx.ICON_INFORMATION)
