@@ -212,6 +212,7 @@ class MainFrame(wx.Frame):
                     self.tree.AppendItem(self.tree_fridge, name)
                 else:
                     self.appData['streamers_data'][i]['wait_until'] = ''
+                    self.tree.AppendItem(self.tree_queue, name)
                     isAppDataChanged = True
 
             else:
