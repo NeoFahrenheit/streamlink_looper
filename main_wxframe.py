@@ -11,6 +11,7 @@ from notifypy import Notify
 from scheduler import Scheduler
 import settings
 import about
+import listctrl
 from enums import ID
 
 class MainFrame(wx.Frame):
@@ -65,11 +66,14 @@ class MainFrame(wx.Frame):
         ''' Loads the .json configuration file. '''
 
         if not os.path.isfile(f'{self.home_path}/.streamlink_looper.json'):
-            proc = subprocess.run(['streamlink', '--version'], stdout=subprocess.PIPE, text=True)
-            streamlink_version = proc.stdout.split()[1]
+            try:
+                proc = subprocess.run(['streamlink', '--version'], stdout=subprocess.PIPE, text=True)
+                streamlink_version = proc.stdout.split()[1]
+                self.appData['streamlink_version'] = streamlink_version
+            except:
+                self.appData['streamlink_version'] = -1
 
             self.appData['app_version'] = self.version
-            self.appData['streamlink_version'] = streamlink_version
             self.appData['download_dir'] = self.default_download_path
             self.appData['start_on_scheduler'] = False
             self.appData['tray_on_minimized'] = False
@@ -108,21 +112,9 @@ class MainFrame(wx.Frame):
         masterSizer = wx.BoxSizer(wx.VERTICAL)
         upperSizer = wx.BoxSizer(wx.HORIZONTAL)
 
-        self.listCtrl = wx.ListCtrl(self.panel, -1, style=wx.LC_REPORT)
+        self.listCtrl = listctrl.ListCtrl(self.panel)
         self.listCtrl.Bind(wx.EVT_LIST_INSERT_ITEM, self.OnListCtrlModified)
         self.listCtrl.Bind(wx.EVT_LIST_DELETE_ITEM, self.OnListCtrlModified)
-
-        self.listCtrl.InsertColumn(0, 'Name', wx.LIST_FORMAT_CENTRE)
-        self.listCtrl.InsertColumn(1, 'Time', wx.LIST_FORMAT_CENTRE)
-        self.listCtrl.InsertColumn(2, 'Quality', wx.LIST_FORMAT_CENTRE)
-        self.listCtrl.InsertColumn(3, 'Size', wx.LIST_FORMAT_CENTRE)
-        self.listCtrl.InsertColumn(4, 'Speed', wx.LIST_FORMAT_CENTRE)
-
-        self.listCtrl.SetColumnWidth(0, 150)
-        self.listCtrl.SetColumnWidth(1, 80)
-        self.listCtrl.SetColumnWidth(2, 80)
-        self.listCtrl.SetColumnWidth(3, 80)
-        self.listCtrl.SetColumnWidth(4, 80)
 
         self.rt = rt.RichTextCtrl(self.panel, -1, style=wx.TE_READONLY)
         self.rt.GetCaret().Hide()
@@ -243,6 +235,10 @@ class MainFrame(wx.Frame):
         if self.appData['log_scroll_down']:
             self.rt.ShowPosition(self.rt.GetLastPosition())
 
+        if status:
+            self.OnListCtrlModified(None)
+
+
     def LogStreamEnded(self, streamer: str, time: str):
         ''' Adds to the log notifying about the ended stream. '''
 
@@ -253,6 +249,9 @@ class MainFrame(wx.Frame):
 
         if self.appData['log_scroll_down']:
             self.rt.ShowPosition(self.rt.GetLastPosition())
+
+        self.OnListCtrlModified(None)
+
 
     def WriteStreamerName(self, name: str):
 
@@ -465,7 +464,7 @@ class MainFrame(wx.Frame):
 
             case ID.TREE_FRIDGE:
                 self.tree.AppendItem(self.tree_fridge, name)
-
+        
         self.tree.Refresh()
 
     def EditInTree(self, oldName: str, newName: str):
