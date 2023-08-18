@@ -12,12 +12,13 @@ import utilities as util
 from enums import ID
 
 class Download(Thread):
-    def __init__(self, parent, streamer: dict, dir: str, session):
+    def __init__(self, parent, streamer: dict, dir: str, session, options):
         Thread.__init__(self)
 
         self.parent = parent
         self.isActive = True
         self.session = session
+        self.options = options
 
         self.stream_data = None
         self.streamer = streamer
@@ -60,7 +61,7 @@ class Download(Thread):
 
         # Will this catch streams end or stream offline? What about hostings? We don't want that.
         try:
-            streams = self.session.streams(self.url)
+            streams = self.session.streams(self.url, self.options)
             quality_list = list(streams.keys())
             self.streamerQuality = self.ChooseQuality(self.userQuality, quality_list)
             self.stream_data = streams[self.streamerQuality].open()

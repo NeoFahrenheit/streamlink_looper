@@ -1,4 +1,5 @@
 import streamlink
+from streamlink.options import Options
 from wx import CallAfter
 from threading import Thread
 import download_thread as dt
@@ -12,8 +13,10 @@ class Scheduler(Thread):
         Thread.__init__(self)
 
         self.session = streamlink.Streamlink()
-        self.session.set_plugin_option("twitch", "api-header", [("Authorization", appData['twitch_auth'])])
-
+        
+        self.options = Options()
+        self.options.set("api-header", [("Authorization", appData['twitch_auth'])])
+        
         self.isActive = startNow
         self.wasOnBefore = False
         self.parent = parent
@@ -142,7 +145,7 @@ class Scheduler(Thread):
     def CheckStreamer(self, streamer: dict) -> bool:
         ''' Checks if a streamer is online. If so, starts it's download thread. '''
 
-        t = dt.Download(self, streamer, self.dir, self.session)
+        t = dt.Download(self, streamer, self.dir, self.session, self.options)
 
         if t.fetch_stream():
             t.start()

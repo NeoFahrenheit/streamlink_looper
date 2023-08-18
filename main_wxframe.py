@@ -7,7 +7,6 @@ import subprocess
 from pubsub import pub
 import json
 from datetime import datetime, timedelta
-from notifypy import Notify
 from scheduler import Scheduler
 import settings
 import about
@@ -136,13 +135,6 @@ class MainFrame(wx.Frame):
         masterSizer.Add(upperSizer, proportion=2, flag=wx.ALL | wx.EXPAND, border=5)
         masterSizer.Add(self.rt, proportion=1, flag=wx.LEFT | wx.RIGHT | wx.BOTTOM| wx.EXPAND, border=10)
 
-        self.notification = Notify(
-        default_notification_title = "Someone is online.",
-        default_notification_application_name = "Streamlink Looper",
-        default_notification_icon = 'media/icon_64.png',
-        default_notification_audio = 'media/notification_sound.wav'
-        )
-
         self.panel.SetSizerAndFit(masterSizer)
 
     def InitMenu(self):
@@ -218,10 +210,6 @@ class MainFrame(wx.Frame):
         
         self.listCtrl.Append([streamer['name'], '00:00:00', '1080p60', '0 B', '0 B/s'])
         self.AddToTree(streamer['name'], ID.TREE_DOWNLOADING)
-
-        if self.appData['send_notifications']:
-            self.notification.message = f"The {streamer['name']}'s stream is online!"
-            self.notification.send(block=False)
 
     def Log(self, streamer: str, time: str, status: bool):
         ''' Adds to the log on the main window. '''
