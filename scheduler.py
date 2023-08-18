@@ -15,7 +15,7 @@ class Scheduler(Thread):
         self.session = streamlink.Streamlink()
         
         self.options = Options()
-        self.options.set("api-header", [("Authorization", appData['twitch_auth'])])
+        # self.options.set("api-header", [("Authorization", appData['twitch_auth'])])
         
         self.isActive = startNow
         self.wasOnBefore = False

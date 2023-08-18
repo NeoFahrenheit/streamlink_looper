@@ -61,7 +61,8 @@ class Download(Thread):
 
         # Will this catch streams end or stream offline? What about hostings? We don't want that.
         try:
-            streams = self.session.streams(self.url, self.options)
+            #streams = self.session.streams(self.url, self.options)
+            streams = self.session.streams(self.url)
             quality_list = list(streams.keys())
             self.streamerQuality = self.ChooseQuality(self.userQuality, quality_list)
             self.stream_data = streams[self.streamerQuality].open()
